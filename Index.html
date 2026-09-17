@@ -1,0 +1,2609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email POC Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" />
+<style>
+  :root {
+    /* ── Premium neutral surfaces ── */
+    --system-background: #F4F5F8;
+    --secondary-system-background: #FFFFFF;
+    --tertiary-system-background: #FBFBFD;
+    --surface-sunken: #ECEEF3;
+
+    /* ── Custom trio accent palette (not Google brand colors) ── */
+    --accent-teal:   #0EA5A0;
+    --accent-teal-d: #0B8580;
+    --accent-violet: #7C5CFC;
+    --accent-violet-d: #6544D6;
+    --accent-amber:  #F2A93C;
+    --accent-amber-d:#C9821E;
+    --accent-rose:   #EF5A72;
+    --accent-rose-d: #D93F58;
+
+    --system-blue: #375DFB;   /* used for primary actions / avail chip */
+    --system-red: #E5484D;
+    --system-green: #1E9E6C;
+    --system-orange: #C9821E;
+    --system-gray: #6B7280;
+    --system-gray2: #9096A2;
+    --system-gray6: #EEF0F4;
+
+    --label: #171A22;
+    --secondary-label: #5B6270;
+    --tertiary-label: #8D93A0;
+    --separator: #E3E6ED;
+
+    /* Site colors — teal / violet / rose / amber quartet */
+    --ubt-bg: #EDE9FE;  --ubt-fg: #6544D6;  --ubt-bd: #D6CCFB;
+    --vncc-bg: #E1F5F3; --vncc-fg: #0B8580; --vncc-bd: #B7E6E1;
+    --ceb-bg:  #FDE7EB; --ceb-fg:  #D93F58; --ceb-bd:  #F8C3CE;
+    --dav-bg:  #FEF3E0; --dav-fg:  #C9821E; --dav-bd:  #FBDDA6;
+
+    --avail-bg: #EAF0FF; --avail-fg: #375DFB;
+    --cap-bg: #EEF0F4;   --cap-fg: #9096A2;
+    --rest-bg: #FEF3E0;  --rest-fg: #C9821E;
+    --off-bg: #F8F9FB;   --off-fg: #A6ABB6;
+    --lock-bg: #FEF3E0;  --lock-fg: #C9821E;
+
+    --radius: 10px;
+    --font-display: 'Sora', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    vertical-align: middle;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    background:
+      radial-gradient(1200px 600px at 100% -10%, #7C5CFC14 0%, transparent 55%),
+      radial-gradient(1000px 500px at -10% 110%, #0EA5A014 0%, transparent 55%),
+      var(--system-background);
+    color: var(--label);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Loading overlay ── */
+  #loadOverlay {
+    position: fixed; inset: 0;
+    background: #FFFFFF;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 999; gap: 16px;
+    transition: opacity .4s;
+  }
+  #loadOverlay.fade { opacity: 0; pointer-events: none; }
+  #loadOverlay.error #loadSpinner { display: none; }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 3px solid var(--system-gray6);
+    border-top-color: var(--accent-violet);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  .spinner.sm { width: 14px; height: 14px; border-width: 2px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loadMsg { font-size: 13px; color: var(--secondary-label); font-weight: 500; }
+  #loadRetryBtn { display: none; }
+  #loadOverlay.error #loadRetryBtn { display: inline-flex; }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed; top: 20px; left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: rgba(255,255,255,0.97);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    color: var(--label);
+    padding: 12px 24px; border-radius: 20px;
+    font-size: 14px; font-weight: 500; z-index: 1000;
+    transition: transform .4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 8px 24px rgba(23,26,34,.12), 0 1px 3px rgba(23,26,34,.08);
+    border: 0.5px solid rgba(0,0,0,0.08);
+    pointer-events: none;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.error   { color: var(--system-red); }
+  #toast.success { color: var(--system-green); }
+  #toast.warning { color: var(--accent-amber-d); }
+
+  /* ── Context menu ── */
+  #ctxMenu {
+    position: fixed; z-index: 998;
+    background: rgba(255,255,255,0.97);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(23,26,34,.14), 0 1px 3px rgba(23,26,34,.08);
+    border: 0.5px solid rgba(0,0,0,0.08);
+    padding: 6px;
+    min-width: 160px;
+    display: none;
+  }
+  #ctxMenu.show { display: block; }
+  .ctx-item {
+    padding: 8px 14px; border-radius: 8px;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; white-space: nowrap;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .ctx-item:hover { background: var(--system-gray6); }
+  .ctx-item.danger { color: var(--system-red); }
+  .ctx-item.warning { color: var(--accent-amber-d); }
+  .ctx-sep { height: 0.5px; background: var(--separator); margin: 4px 0; }
+
+  /* ── Site filter panel ── */
+  #sitePanel {
+    position: fixed; z-index: 998;
+    background: rgba(255,255,255,0.98);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(23,26,34,.14), 0 1px 3px rgba(23,26,34,.08);
+    border: 0.5px solid rgba(0,0,0,0.08);
+    padding: 14px;
+    width: 220px;
+    display: none;
+  }
+  #sitePanel.show { display: block; }
+  .site-panel-title {
+    font-size: 11px; font-weight: 700; color: var(--secondary-label);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .site-panel-title span { color: var(--accent-violet); text-transform: none; }
+  .site-check-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 2px; font-size: 13px; font-weight: 600; color: var(--label);
+    cursor: pointer;
+  }
+  .site-check-row input { width: 15px; height: 15px; accent-color: var(--accent-violet); cursor: pointer; }
+  .site-panel-actions {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-top: 10px; padding-top: 10px;
+    border-top: 0.5px solid var(--separator);
+  }
+  .site-panel-actions .btn { justify-content: center; width: 100%; padding: 7px 10px; font-size: 12px; }
+
+  /* ── Generic dropdown menu (More / Help) ── */
+  .dropdown-panel {
+    position: fixed; z-index: 998;
+    background: rgba(255,255,255,0.98);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(23,26,34,.14), 0 1px 3px rgba(23,26,34,.08);
+    border: 0.5px solid rgba(0,0,0,0.08);
+    padding: 6px;
+    min-width: 200px;
+    display: none;
+  }
+  .dropdown-panel.show { display: block; }
+
+  /* ── Tutorial modal ── */
+  #tutorialPanel {
+    position: fixed; inset: 0; z-index: 999;
+    background: rgba(15,17,23,0.5);
+    display: none; align-items: center; justify-content: center;
+  }
+  #tutorialPanel.open { display: flex; }
+  .tutorial-card {
+    background: #FFFFFF; border-radius: 18px;
+    width: 90%; max-width: 480px;
+    display: flex; flex-direction: column;
+    box-shadow: 0 12px 32px rgba(23,26,34,.25);
+    overflow: hidden;
+  }
+  .tutorial-header {
+    padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 0.5px solid var(--separator);
+  }
+  .tutorial-header h2 { font-family: var(--font-display); font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .tutorial-body { padding: 20px; font-size: 13px; line-height: 1.6; color: var(--secondary-label); min-height: 100px; }
+  .tutorial-body b { color: var(--label); }
+  .tutorial-footer {
+    padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-top: 0.5px solid var(--separator);
+  }
+  .tutorial-dots { display: flex; gap: 5px; }
+  .tut-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--system-gray6); }
+  .tut-dot.active { background: var(--accent-violet); width: 16px; border-radius: 3px; }
+
+  /* ── FAQ modal ── */
+  #faqPanel {
+    position: fixed; inset: 0; z-index: 999;
+    background: rgba(15,17,23,0.45);
+    display: none; align-items: center; justify-content: center;
+  }
+  #faqPanel.open { display: flex; }
+  .faq-card {
+    background: #FFFFFF; border-radius: 18px;
+    width: 90%; max-width: 640px; max-height: 80vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 12px 32px rgba(23,26,34,.25);
+    overflow: hidden;
+  }
+  .faq-header {
+    padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 0.5px solid var(--separator);
+  }
+  .faq-header h2 { font-family: var(--font-display); font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .faq-body { overflow-y: auto; flex: 1; padding: 10px 20px; }
+  .faq-item { border-bottom: 0.5px solid var(--separator); padding: 4px 0; }
+  .faq-q {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 2px; font-size: 13px; font-weight: 700; color: var(--label);
+    cursor: pointer;
+  }
+  .faq-caret { font-size: 18px; color: var(--tertiary-label); transition: transform .2s; }
+  .faq-a {
+    max-height: 0; overflow: hidden;
+    font-size: 13px; color: var(--secondary-label); line-height: 1.6;
+    transition: max-height .25s ease;
+  }
+  .faq-a.open { max-height: 300px; padding-bottom: 12px; }
+
+  /* ── Top bar ── */
+  .topbar {
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 0 20px;
+    height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    border-bottom: 0.5px solid var(--separator);
+    position: relative;
+    gap: 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .topbar::-webkit-scrollbar { display: none; }
+  .topbar::after {
+    content: '';
+    position: absolute; left: 0; right: 0; bottom: -3px; height: 3px;
+    background: linear-gradient(90deg, var(--accent-teal) 0%, var(--accent-violet) 55%, var(--accent-rose) 100%);
+  }
+  .topbar-brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .brand-mark {
+    width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--accent-teal), var(--accent-violet));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-family: var(--font-display); font-weight: 800; font-size: 14px;
+    box-shadow: 0 3px 8px rgba(124,92,252,.35);
+  }
+  .brand-text {
+    font-family: var(--font-display);
+    font-size: 16px; font-weight: 700; letter-spacing: -0.2px;
+    display: flex; align-items: center; gap: 8px;
+    color: var(--label);
+  }
+  .brand-text .accent { color: var(--accent-violet); }
+  .topbar-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  /* ── Buttons ── */
+  .btn {
+    padding: 8px 16px; font-size: 13px; font-family: var(--font);
+    border-radius: 20px; border: none;
+    background: var(--system-gray6); color: var(--label);
+    cursor: pointer; white-space: nowrap;
+    transition: all 0.15s cubic-bezier(0.2, 0, 0, 1);
+    display: flex; align-items: center; gap: 6px;
+    font-weight: 600; letter-spacing: 0.1px;
+    position: relative;
+  }
+  .btn:hover { background: #E4E7EE; box-shadow: 0 1px 2px rgba(23,26,34,.08), 0 2px 6px rgba(23,26,34,.06); }
+  .btn-icon, .ctx-icon { font-size: 16px; }
+  .btn:active { transform: scale(0.96); opacity: 0.85; }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn.primary { background: linear-gradient(135deg, var(--accent-violet), var(--accent-violet-d)); color: #FFFFFF; box-shadow: 0 2px 8px rgba(124,92,252,.4); }
+  .btn.primary:hover { background: linear-gradient(135deg, #8B6EFF, var(--accent-violet)); box-shadow: 0 3px 12px rgba(124,92,252,.55); }
+  .btn.publish {
+    background: linear-gradient(135deg, var(--accent-teal), var(--accent-teal-d));
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(14,165,160,.4);
+    animation: publishGlow 2.4s ease-in-out infinite;
+  }
+  .btn.publish:hover { background: linear-gradient(135deg, #16BDB6, var(--accent-teal)); box-shadow: 0 3px 12px rgba(14,165,160,.55); }
+  .btn.publish:disabled { animation: none; }
+  @keyframes publishGlow {
+    0%, 100% { box-shadow: 0 2px 8px rgba(14,165,160,.4); }
+    50% { box-shadow: 0 2px 16px rgba(14,165,160,.65); }
+  }
+  .btn.danger { background: #E5484D14; color: var(--system-red); }
+  .btn.danger:hover { background: #E5484D22; }
+  .btn.warning { background: #C9821E16; color: var(--accent-amber-d); }
+  .btn.warning:hover { background: #C9821E26; }
+
+  .btn .btn-spinner { display: none; }
+  .btn.is-loading .btn-icon { display: none; }
+  .btn.is-loading .btn-spinner { display: inline-flex; }
+
+  /* cap control */
+  .cap-ctrl {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--secondary-label);
+    background: var(--system-gray6);
+    border-radius: 8px; padding: 4px 10px;
+  }
+  .cap-ctrl label { white-space: nowrap; font-weight: 600; }
+  .cap-ctrl input {
+    width: 32px; text-align: center;
+    border: none; border-radius: 4px;
+    padding: 2px; font-size: 13px; font-weight: 700;
+    background: transparent; color: var(--label);
+    outline: none;
+  }
+
+  /* ── Month & Week strip ── */
+  .filter-strip {
+    background: var(--secondary-system-background);
+    padding: 10px 20px;
+    display: flex; align-items: center; gap: 16px;
+    flex-shrink: 0;
+    border-bottom: 0.5px solid var(--separator);
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .filter-strip::-webkit-scrollbar { display: none; }
+  .filter-label {
+    font-size: 11px; color: var(--secondary-label); font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .month-filter, .week-pills {
+    display: flex; gap: 4px; align-items: center;
+    background: var(--system-gray6);
+    padding: 2px; border-radius: 9px;
+  }
+  .month-btn, .week-pill {
+    padding: 4px 12px; font-size: 13px; font-weight: 600;
+    border-radius: 7px; border: none;
+    background: transparent; color: var(--label);
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .month-btn:hover, .week-pill:hover { background: rgba(0,0,0,0.05); }
+  .month-btn.active, .week-pill.active {
+    background: #FFFFFF;
+    color: var(--accent-violet);
+    box-shadow: 0 1px 2px rgba(23,26,34,.08), 0 2px 6px rgba(23,26,34,.06);
+  }
+  .week-pill.today-week { color: var(--accent-violet); font-weight: 700; position: relative; }
+  .week-pill.today-week::before {
+    content: ''; position: absolute; top: 2px; right: 2px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-rose);
+    animation: dotPing 1.6s ease-out infinite;
+  }
+  @keyframes dotPing {
+    0%   { box-shadow: 0 0 0 0 rgba(239,90,114,.5); }
+    70%  { box-shadow: 0 0 0 6px rgba(239,90,114,0); }
+    100% { box-shadow: 0 0 0 0 rgba(239,90,114,0); }
+  }
+
+  /* ── Day tabs (with per-day publish-selection checkbox) ── */
+  .day-strip-wrap {
+    background: var(--secondary-system-background);
+    border-bottom: 0.5px solid var(--separator);
+    flex-shrink: 0;
+  }
+  .day-select-bar {
+    display: none;
+    align-items: center; gap: 10px;
+    padding: 6px 20px; font-size: 11px; color: var(--secondary-label);
+    background: #EAF0FF; border-bottom: 0.5px solid var(--avail-bd, #C7D6FF);
+  }
+  .day-select-bar.open { display: flex; }
+  .day-select-bar b { color: var(--accent-violet); }
+  .day-select-bar .dsb-link {
+    color: var(--accent-violet); cursor: pointer; font-weight: 700; text-decoration: underline;
+  }
+  .day-strip {
+    padding: 0 20px;
+    display: flex; align-items: stretch; gap: 4px;
+    height: 56px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .day-strip::-webkit-scrollbar { display: none; }
+  .day-tab {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 0 14px; font-size: 13px; font-weight: 500;
+    border: none; background: transparent; cursor: pointer;
+    color: var(--secondary-label); transition: all 0.2s; white-space: nowrap;
+    position: relative; gap: 2px; flex-shrink: 0;
+  }
+  .day-tab .dt-check {
+    position: absolute; top: 4px; left: 6px;
+    width: 14px; height: 14px; border-radius: 4px;
+    border: 1.5px solid var(--separator); background: #fff;
+    display: none; align-items: center; justify-content: center;
+    font-size: 10px; color: #fff;
+  }
+  .day-select-bar.open ~ .day-strip .dt-check,
+  .day-strip.selecting .dt-check { display: flex; }
+  .day-tab .dt-check.checked { background: var(--accent-violet); border-color: var(--accent-violet); }
+  .day-tab .dt-name  { font-size: 13px; font-weight: 700; }
+  .day-tab .dt-date  { font-size: 11px; color: var(--secondary-label); }
+  .day-tab .dt-badge {
+    font-size: 10px; font-weight: 700;
+    color: var(--system-red);
+    background: #E5484D15;
+    border-radius: 10px; padding: 1px 5px;
+    min-width: 18px; text-align: center;
+  }
+  .dt-site-flag { font-size: 12px !important; color: var(--accent-violet); }
+  .day-tab:hover { color: var(--label); background: rgba(0,0,0,0.03); }
+  .day-tab.active { color: var(--accent-violet); }
+  .day-tab.active::after {
+    content: '';
+    position: absolute; bottom: 0; left: 15%; right: 15%; height: 3px;
+    background: linear-gradient(90deg, var(--accent-teal), var(--accent-violet)); border-radius: 3px 3px 0 0;
+  }
+  .day-tab.active .dt-date { color: var(--accent-violet); opacity: 0.85; }
+
+  /* ── Legend ── */
+  .legend-bar {
+    background: var(--secondary-system-background);
+    padding: 6px 20px;
+    display: flex; gap: 14px; flex-wrap: wrap;
+    font-size: 11px; color: var(--secondary-label);
+    border-bottom: 0.5px solid var(--separator);
+    flex-shrink: 0; align-items: center;
+  }
+  .legend-bar span { display: flex; align-items: center; gap: 4px; }
+  .ld { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── Table area ── */
+  .tbl-wrap { flex: 1; overflow: auto; min-height: 0; position: relative; }
+  table { border-collapse: collapse; width: 100%; }
+
+  /* Sticky header */
+  thead th {
+    position: sticky; top: 0; z-index: 10;
+    background: #FAFAFC;
+    color: var(--secondary-label);
+    padding: 10px 8px; font-size: 11px; font-weight: 700;
+    text-align: center;
+    border-bottom: 0.5px solid var(--separator);
+    border-right: 0.5px solid var(--separator);
+    white-space: nowrap;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  thead th.th-time {
+    text-align: left; min-width: 80px; padding-left: 20px;
+    position: sticky; left: 0; z-index: 20;
+    background: #F2F3F7;
+  }
+  thead th.th-poc {
+    min-width: 130px;
+    background: #F2F3F7; color: var(--label); font-weight: 800;
+    position: sticky; left: 80px; z-index: 20;
+  }
+  thead th.th-support { min-width: 100px; }
+
+  /* Agent header */
+  .ag-hdr { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .ag-name { font-size: 13px; color: var(--label); text-transform: none; letter-spacing: normal; font-weight: 700; }
+
+  .ag-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    object-fit: cover; background: var(--system-gray6);
+    border: 1.5px solid #FFFFFF;
+    box-shadow: 0 1px 3px rgba(23,26,34,.15);
+  }
+  .ag-meta { display: flex; align-items: center; gap: 4px; }
+  .ag-badge {
+    font-size: 11px; border-radius: 6px; padding: 2px 6px;
+    font-weight: 700; min-width: 28px; text-align: center;
+  }
+  .ag-badge.ok   { background: linear-gradient(135deg, var(--accent-teal), var(--accent-teal-d)); color: #FFFFFF; }
+  .ag-badge.over { background: linear-gradient(135deg, #F0707F, var(--system-red)); color: #FFFFFF; animation: badgePulse 1.6s ease-in-out infinite; }
+  .ag-badge.zero { color: var(--system-gray2); background: var(--system-gray6); }
+  @keyframes badgePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+  .ag-fair {
+    font-size: 10px; border-radius: 4px; padding: 1px 4px;
+    font-weight: 700;
+  }
+  .ag-fair.fair-hi  { background: #0EA5A02E; color: var(--accent-teal-d); }
+  .ag-fair.fair-mid { background: #F2A93C28; color: var(--accent-amber-d); }
+  .ag-fair.fair-lo  { color: var(--system-gray2); }
+
+  /* Body rows */
+  tbody tr { background: #FFFFFF; animation: rowFadeIn .25s ease both; }
+  @keyframes rowFadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+  tbody tr:nth-child(even) td { background: #FAFAFC; }
+  tbody tr:nth-child(even) td.td-time { background: #F5F6F9; }
+  tbody tr:nth-child(even) td.td-poc  { background: #FAFAFC; }
+  tbody tr:hover td { background: #F1F2FE !important; }
+  tbody tr:hover td.td-time { background: #E9EBFB !important; }
+  tbody tr:hover td.td-poc  { background: #F1F2FE !important; }
+  tbody td {
+    padding: 6px 6px; text-align: center;
+    border-bottom: 0.5px solid var(--separator);
+    border-right: 0.5px solid var(--separator);
+  }
+  tbody td.td-time {
+    text-align: left; color: var(--secondary-label); font-size: 13px;
+    padding-left: 20px; font-weight: 700;
+    position: sticky; left: 0; z-index: 5;
+    background: #FAFAFC;
+  }
+  tbody td.td-poc {
+    border-right: 2px solid rgba(124,92,252,.18);
+    position: sticky; left: 80px; z-index: 5;
+    background: #FFFFFF;
+  }
+
+  /* Active hour highlight */
+  tbody tr.active-hour td { background: #EAF0FF !important; box-shadow: inset 0 0 0 1px #C7D6FF; }
+  tbody tr.active-hour td.td-time {
+    color: #FFFFFF; font-weight: 700;
+    background: linear-gradient(135deg, var(--accent-violet), var(--accent-violet-d)) !important;
+  }
+  tbody tr.active-hour td.td-poc { background: #EAF0FF !important; }
+
+  tbody tr.active-hour td.td-time::before {
+    content: '▶';
+    color: #FFFFFF;
+    font-size: 9px;
+    margin-right: 6px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── Chips ── */
+  .chip {
+    border-radius: 6px; padding: 4px 8px;
+    display: inline-block; font-size: 12px;
+    cursor: pointer; transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none; font-weight: 700; white-space: nowrap;
+    min-width: 70px; text-align: center;
+  }
+  .chip:hover { filter: brightness(0.95); transform: scale(1.03); }
+  .chip-poc    { box-shadow: 0 2px 6px rgba(0,0,0,0.15); font-weight: 700; }
+  .chip-avail  { background: linear-gradient(135deg, #5C7FFF, var(--system-blue)); color: #FFFFFF; box-shadow: 0 1px 4px rgba(55,93,251,.35); }
+  .chip-capped { background: var(--cap-bg); color: var(--cap-fg); cursor: default; font-size: 11px; }
+  .chip-restrict { background: var(--rest-bg); color: var(--rest-fg); cursor: default; font-size: 11px; }
+  .chip-off    { background: var(--off-bg); color: var(--off-fg); cursor: default; font-size: 11px; font-weight: 600; }
+  .chip-locked { background: var(--lock-bg); color: var(--lock-fg); font-size: 11px; }
+  .chip-excluded { background: #F1F2F4; color: var(--tertiary-label); font-size: 11px; cursor: not-allowed; }
+
+  .chip.ubt  { background: linear-gradient(135deg, #8B6EFF, var(--accent-violet)); color: #FFFFFF; }
+  .chip.vncc { background: linear-gradient(135deg, #16BDB6, var(--accent-teal)); color: #FFFFFF; }
+  .chip.ceb  { background: linear-gradient(135deg, #F0707F, var(--accent-rose)); color: #FFFFFF; }
+  .chip.dav  { background: linear-gradient(135deg, #F5BD6B, var(--accent-amber)); color: #FFFFFF; }
+
+  .chip-lock-icon { font-size: 12px; margin-left: 3px; vertical-align: -2px; }
+
+  .no-cov {
+    color: var(--system-red); font-size: 11px; font-weight: 700;
+    text-transform: uppercase;
+    background: #E5484D15;
+    padding: 4px 8px; border-radius: 6px;
+  }
+
+  /* Conflict indicator */
+  .conflict-dot {
+    display: inline-block; width: 6px; height: 6px;
+    background: var(--accent-amber); border-radius: 50%;
+    margin-left: 4px; vertical-align: middle;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  /* ── Summary / footer ── */
+  .footer-wrap {
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 0.5px solid var(--separator);
+    flex-shrink: 0;
+  }
+  .summary-bar {
+    padding: 8px 20px;
+    display: flex; align-items: center; gap: 16px;
+    font-size: 13px; color: var(--secondary-label);
+    flex-wrap: wrap;
+  }
+  .summary-bar b { color: var(--label); font-weight: 700; }
+  .summary-bar .s-ok  { color: #FFFFFF; font-weight: 700; background: linear-gradient(135deg,var(--accent-teal),var(--accent-teal-d)); padding: 2px 8px; border-radius: 10px; }
+  .summary-bar .s-bad { color: #FFFFFF; font-weight: 700; background: linear-gradient(135deg,#F0707F,var(--system-red)); padding: 2px 8px; border-radius: 10px; }
+  .summary-bar .s-sep { width: 1px; height: 16px; background: var(--separator); flex-shrink: 0; }
+  .dist-item {
+    display: flex; align-items: center; gap: 5px;
+    background: #FFFFFF; padding: 3px 10px; border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(23,26,34,.12);
+    border: 1px solid var(--separator);
+  }
+  .dist-item .d-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Full agent breakdown panel */
+  .agent-breakdown {
+    padding: 0 20px 8px;
+    display: none;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 80px;
+    overflow-y: auto;
+  }
+  .agent-breakdown.open { display: flex; }
+  .ab-item {
+    display: flex; align-items: center; gap: 5px;
+    background: var(--system-gray6); padding: 4px 10px; border-radius: 8px;
+    font-size: 12px; font-weight: 600;
+  }
+  .ab-item .ab-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .ab-item .ab-hrs { font-weight: 700; color: var(--label); margin-left: 2px; }
+  .ab-item .ab-fair {
+    font-size: 10px; padding: 1px 4px; border-radius: 4px; margin-left: 2px;
+  }
+  .ab-toggle {
+    font-size: 11px; color: var(--accent-violet); cursor: pointer; font-weight: 700;
+    padding: 4px 10px; border-radius: 14px; background: #7C5CFC15;
+    white-space: nowrap; flex-shrink: 0;
+    border: none; font-family: var(--font);
+  }
+  .ab-toggle:hover { background: #7C5CFC25; }
+
+  /* History panel */
+  #historyPanel {
+    position: fixed; inset: 0; z-index: 997;
+    background: rgba(15,17,23,0.45);
+    display: none; align-items: center; justify-content: center;
+  }
+  #historyPanel.open { display: flex; }
+  .history-card {
+    background: #FFFFFF; border-radius: 18px;
+    width: 90%; max-width: 900px; max-height: 80vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 12px 32px rgba(23,26,34,.25);
+    overflow: hidden;
+  }
+  .history-header {
+    padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 0.5px solid var(--separator);
+  }
+  .history-header h2 { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+  .history-body { overflow-y: auto; flex: 1; padding: 16px 20px; }
+  .history-week {
+    margin-bottom: 20px;
+  }
+  .history-week h3 {
+    font-size: 13px; font-weight: 700; color: var(--secondary-label);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .history-del-btn {
+    font-size: 10px; color: var(--system-red); cursor: pointer; font-weight: 700;
+    padding: 3px 8px; border-radius: 12px; background: #E5484D15;
+    white-space: nowrap; border: none; font-family: var(--font);
+    text-transform: none; letter-spacing: normal;
+  }
+  .history-del-btn:hover { background: #E5484D28; }
+  .history-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 8px;
+  }
+  .history-day-card {
+    background: var(--system-gray6); border-radius: 10px;
+    padding: 10px 12px; font-size: 12px;
+  }
+  .history-day-card .hdc-title {
+    font-weight: 700; margin-bottom: 6px; color: var(--label);
+  }
+  .history-day-card .hdc-agent {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 2px 0; color: var(--secondary-label);
+  }
+  .history-day-card .hdc-agent b { color: var(--label); font-weight: 600; }
+  .history-state {
+    text-align: center; padding: 40px; color: var(--secondary-label);
+    font-size: 14px;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  .history-state.is-error { color: var(--system-red); }
+
+  /* Scrollbar styling */
+  .tbl-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+  .tbl-wrap::-webkit-scrollbar-track { background: transparent; }
+  .tbl-wrap::-webkit-scrollbar-thumb { background: #D5D8E0; border-radius: 4px; }
+  .tbl-wrap::-webkit-scrollbar-thumb:hover { background: #B7BBC7; }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loadOverlay">
+  <div class="spinner" id="loadSpinner"></div>
+  <div id="loadMsg">Loading schedule data…</div>
+  <button class="btn primary" id="loadRetryBtn" onclick="retryBoot()">
+    <span class="material-symbols-outlined btn-icon">refresh</span>Retry
+  </button>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Context menu -->
+<div id="ctxMenu">
+  <div class="ctx-item" id="ctxCycle"  onclick="ctxAction('cycle')"><span class="material-symbols-outlined ctx-icon">autorenew</span>Cycle to next agent</div>
+  <div class="ctx-item" id="ctxLock"   onclick="ctxAction('lock')"><span class="material-symbols-outlined ctx-icon">lock</span>Lock this assignment</div>
+  <div class="ctx-item" id="ctxUnlock" onclick="ctxAction('unlock')" style="display:none"><span class="material-symbols-outlined ctx-icon">lock_open</span>Unlock assignment</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger"          onclick="ctxAction('clear')"><span class="material-symbols-outlined ctx-icon">close</span>Unassign this slot</div>
+</div>
+
+<!-- Site filter panel -->
+<div id="sitePanel" onclick="event.stopPropagation()">
+  <div class="site-panel-title">Site filter — <span id="sitePanelScope">using week default</span></div>
+  <label class="site-check-row"><input type="checkbox" data-site="UBT" checked> UBT</label>
+  <label class="site-check-row"><input type="checkbox" data-site="VNCC" checked> VNCC</label>
+  <label class="site-check-row"><input type="checkbox" data-site="CEB" checked> CEB</label>
+  <label class="site-check-row"><input type="checkbox" data-site="DAV" checked> DAV</label>
+  <div class="site-panel-actions">
+    <button class="btn" onclick="applySiteFilter('day')">Apply to this day</button>
+    <button class="btn primary" onclick="applySiteFilter('week')">Set as week default</button>
+    <button class="btn danger" id="siteClearDayBtn" style="display:none" onclick="clearDayOverride()">Clear day override</button>
+  </div>
+</div>
+
+<!-- More actions menu -->
+<div class="dropdown-panel" id="moreMenu" onclick="event.stopPropagation()">
+  <div class="ctx-item" onclick="closeMoreMenu(); clearDay()"><span class="material-symbols-outlined ctx-icon">close</span>Clear day</div>
+  <div class="ctx-item" onclick="closeMoreMenu(); autoAssignWeek()"><span class="material-symbols-outlined ctx-icon">autorenew</span>Full week</div>
+  <div class="ctx-item" onclick="closeMoreMenu(); copyWeekForward()"><span class="material-symbols-outlined ctx-icon">content_copy</span>Copy → next</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="closeMoreMenu(); toggleDaySelectMode()"><span class="material-symbols-outlined ctx-icon">checklist</span>Select days</div>
+  <div class="ctx-item" id="sitesMenuItem" onclick="closeMoreMenu(); toggleSitePanel()"><span class="material-symbols-outlined ctx-icon">filter_alt</span>Sites…</div>
+</div>
+
+<!-- Help menu -->
+<div class="dropdown-panel" id="helpMenu" onclick="event.stopPropagation()">
+  <div class="ctx-item" onclick="closeHelpMenu(); startTutorial()"><span class="material-symbols-outlined ctx-icon">school</span>Take the tour</div>
+  <div class="ctx-item" onclick="closeHelpMenu(); openFaq()"><span class="material-symbols-outlined ctx-icon">quiz</span>FAQ &amp; how to use</div>
+</div>
+
+<!-- Tutorial modal -->
+<div id="tutorialPanel">
+  <div class="tutorial-card">
+    <div class="tutorial-header">
+      <h2><span class="material-symbols-outlined" style="font-size:20px;color:var(--accent-violet)">school</span><span id="tutStepTitle">Welcome</span></h2>
+      <button class="btn" onclick="closeTutorial()"><span class="material-symbols-outlined btn-icon">close</span>Skip</button>
+    </div>
+    <div class="tutorial-body" id="tutStepBody"></div>
+    <div class="tutorial-footer">
+      <div class="tutorial-dots" id="tutDots"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="tutBackBtn" onclick="tutorialBack()">Back</button>
+        <button class="btn primary" id="tutNextBtn" onclick="tutorialNext()">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FAQ modal -->
+<div id="faqPanel">
+  <div class="faq-card">
+    <div class="faq-header">
+      <h2><span class="material-symbols-outlined" style="font-size:20px;vertical-align:-4px;color:var(--accent-violet)">quiz</span> FAQ &amp; How to Use</h2>
+      <button class="btn" onclick="closeFaq()"><span class="material-symbols-outlined btn-icon">close</span>Close</button>
+    </div>
+    <div class="faq-body" id="faqBody"></div>
+  </div>
+</div>
+
+<!-- History Panel -->
+<div id="historyPanel">
+  <div class="history-card">
+    <div class="history-header">
+      <h2><span class="material-symbols-outlined" style="font-size:20px;vertical-align:-4px;color:var(--accent-violet)">calendar_view_week</span> Published Weeks Overview</h2>
+      <button class="btn" onclick="closeHistory()"><span class="material-symbols-outlined btn-icon">close</span>Close</button>
+    </div>
+    <div class="history-body" id="historyBody"></div>
+  </div>
+</div>
+
+<!-- ── Top bar ── -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="brand-mark">P</div>
+    <div class="brand-text">Email <span class="accent">POC</span> Planner</div>
+  </div>
+  <div class="topbar-controls">
+    <div class="cap-ctrl">
+      <label>Max hrs/shift:</label>
+      <input type="number" id="capInput" value="2" min="1" max="9"
+             onchange="onCapChange()" onkeydown="if(event.key==='Enter'){this.blur();}">
+    </div>
+    <button class="btn" id="fillGapsBtn" onclick="manualFillGaps()" title="Fill only the currently-empty eligible slots for this week — never touches existing assignments">
+      <span class="material-symbols-outlined btn-icon">grid_goldenratio</span>
+      <span class="spinner sm btn-spinner"></span>
+      Fill gaps
+    </button>
+    <button class="btn primary" id="reassignBtn" onclick="applyCapAndReassign()" title="Clear unlocked slots and rebuild the whole week from scratch">
+      <span class="material-symbols-outlined btn-icon">autorenew</span>
+      <span class="spinner sm btn-spinner"></span>
+      Reassign
+    </button>
+    <button class="btn" id="moreBtn" onclick="toggleMoreMenu()" title="Clear day, full-week assign, copy forward, select days, site filter">
+      <span class="material-symbols-outlined btn-icon">more_horiz</span>More
+    </button>
+    <button class="btn" id="historyBtn" onclick="openHistory()"        title="View published schedule for all weeks">
+      <span class="material-symbols-outlined btn-icon">calendar_view_week</span>
+      <span class="spinner sm btn-spinner"></span>
+      Published Weeks
+    </button>
+    <button class="btn" id="refreshBtn" onclick="refreshFromServer()"  title="Reload the latest published schedule from the sheet">
+      <span class="material-symbols-outlined btn-icon">refresh</span>
+      <span class="spinner sm btn-spinner"></span>
+      Refresh
+    </button>
+    <button class="btn" id="helpBtn" onclick="toggleHelpMenu()" title="Tutorial and FAQ">
+      <span class="material-symbols-outlined btn-icon">help</span>Help
+    </button>
+    <button class="btn publish" id="publishBtn" onclick="publishPOC()">
+      <span class="material-symbols-outlined btn-icon">publish</span>
+      <span class="spinner sm btn-spinner"></span>
+      <span id="publishBtnLabel">Publish</span>
+    </button>
+  </div>
+</div>
+
+<!-- ── Month & Week selector ── -->
+<div class="filter-strip">
+  <div class="filter-label">Month</div>
+  <div class="month-filter" id="monthFilter"></div>
+  <div class="filter-label" style="margin-left: 12px;">Week</div>
+  <div class="week-pills" id="weekPills"></div>
+</div>
+
+<!-- ── Day tabs ── -->
+<div class="day-strip-wrap">
+  <div class="day-select-bar" id="daySelectBar">
+    <span><b id="daySelectCount">0</b> day(s) selected for publish</span>
+    <span class="dsb-link" onclick="selectAllDays()">Select all</span>
+    <span class="dsb-link" onclick="clearDaySelection()">Clear</span>
+    <span class="dsb-link" onclick="toggleDaySelectMode()">Done</span>
+  </div>
+  <div class="day-strip" id="dayStrip"></div>
+</div>
+
+<!-- ── Legend ── -->
+<div class="legend-bar">
+  <span><span class="ld" style="background:var(--ubt-bg);border:1px solid var(--ubt-bd)"></span>Assigned POC</span>
+  <span><span class="ld" style="background:var(--avail-bg);border:1px solid #AECBFA"></span>Available (click)</span>
+  <span><span class="ld" style="background:var(--cap-bg)"></span>Cap reached</span>
+  <span><span class="ld" style="background:var(--rest-bg)"></span>Restricted</span>
+  <span><span class="ld" style="background:var(--off-bg)"></span>OFF / VL / LOA</span>
+  <span><span class="ld" style="background:var(--lock-bg);border:1px solid #FDD663"></span>Locked</span>
+  <span><span class="ld" style="background:#F1F2F4;border:1px solid #E3E6ED"></span>Site excluded</span>
+  <span style="margin-left:4px"><span class="ld" style="background:var(--ubt-bg);border:1px solid var(--ubt-bd)"></span>UBT</span>
+  <span><span class="ld" style="background:var(--vncc-bg);border:1px solid var(--vncc-bd)"></span>VNCC</span>
+  <span><span class="ld" style="background:var(--ceb-bg);border:1px solid var(--ceb-bd)"></span>CEB</span>
+  <span><span class="ld" style="background:var(--dav-bg);border:1px solid var(--dav-bd)"></span>DAV</span>
+  <span style="margin-left:auto;font-size:11px;color:var(--system-gray2)">Right-click POC chip to lock/unassign · Arrow keys to navigate days</span>
+</div>
+
+<!-- ── Table ── -->
+<div class="tbl-wrap" id="tblWrap">
+  <table><thead id="thead"></thead><tbody id="tbody"></tbody></table>
+</div>
+
+<!-- ── Footer ── -->
+<div class="footer-wrap">
+  <div class="summary-bar" id="summaryBar"></div>
+  <div class="agent-breakdown" id="agentBreakdown"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+//  Constants & State
+// ─────────────────────────────────────────────────────────────
+const SHIFT   = 9;
+const R_START = 2;
+const R_END   = 0;
+const HOURS   = Array.from({ length: 24 }, (_, i) => i);
+const DAY_ABBR  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MON_MAP   = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+const MON_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const SITE_CLS  = { UBT:'ubt', VNCC:'vncc', CEB:'ceb', DAV:'dav' };
+const SITE_DOT  = { UBT:'#6544D6', VNCC:'#0B8580', CEB:'#D93F58', DAV:'#C9821E' };
+
+/* ─────────────────────────────────────────
+   AVATAR HELPERS
+───────────────────────────────────────── */
+function escAttr(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function getMomaImg(ldap, size) {
+  size = size || 64;
+  const sLdap = escAttr(ldap);
+  const p = 'https://moma-teams-photos.corp.google.com/photos/' + sLdap + '?sz=' + size;
+  const f = p + '&type=SECURITY&type=SILHOUETTE';
+  return '<img src="' + p + '" class="ag-avatar" onerror="this.onerror=null;this.src=\'' + f + '\';">';
+}
+
+let supports     = [];
+let allDays      = [];
+let weeks        = [];
+let currentMonth = null;
+let currentWeek  = 0;
+let currentDay   = 0;
+let MAX_CAP      = 2;
+
+// ── Site filter state ──────────────────────────────────────
+const DEFAULT_SITE_FILTER = { UBT: true, VNCC: true, CEB: true, DAV: true };
+const weekSiteFilters = {};   // weekLabel -> {UBT:bool,...} (week-level default)
+const daySiteFilters  = {};   // globalIdx -> {UBT:bool,...} (per-day override, wins over week default)
+const dayToWeekLabel  = {};   // globalIdx -> weekLabel, populated in buildWeeks()
+
+function getSiteFilter(gi) {
+  if (daySiteFilters[gi]) return daySiteFilters[gi];
+  const wl = dayToWeekLabel[gi];
+  if (wl && weekSiteFilters[wl]) return weekSiteFilters[wl];
+  return DEFAULT_SITE_FILTER;
+}
+function isSiteIncluded(site, gi) {
+  return getSiteFilter(gi)[site] !== false;
+}
+
+function toggleSitePanel() {
+  const panel = document.getElementById('sitePanel');
+  if (panel.classList.contains('show')) { closeSitePanel(); return; }
+  loadSitePanelState();
+  const rect = document.getElementById('moreBtn').getBoundingClientRect();
+  panel.style.left = Math.min(rect.left, window.innerWidth - 236) + 'px';
+  panel.style.top  = (rect.bottom + 6) + 'px';
+  panel.classList.add('show');
+  setTimeout(() => document.addEventListener('click', closeSitePanel, { once: true }), 10);
+}
+function closeSitePanel() {
+  document.getElementById('sitePanel').classList.remove('show');
+}
+function loadSitePanelState() {
+  if (!weeks[currentWeek] || !weeks[currentWeek].days[currentDay]) return;
+  const gi = weeks[currentWeek].days[currentDay].globalIdx;
+  const f  = getSiteFilter(gi);
+  document.querySelectorAll('#sitePanel input[data-site]').forEach(cb => {
+    cb.checked = f[cb.dataset.site] !== false;
+  });
+  const hasOverride = !!daySiteFilters[gi];
+  document.getElementById('sitePanelScope').textContent = hasOverride ? 'day override active' : 'using week default';
+  document.getElementById('siteClearDayBtn').style.display = hasOverride ? 'block' : 'none';
+}
+// Clears unlocked assignments in the given days that are no longer allowed
+// under the current site filter (checks both the calendar day and the
+// agent's actual shift-start day, same rule getAvail() uses).
+function reconcileSiteExclusions(giList) {
+  let cleared = 0;
+  giList.forEach(gi => {
+    HOURS.forEach(h => {
+      const key  = gk(gi, h);
+      const name = assignments[key];
+      if (!name || locked[key]) return;
+      const si = supports.findIndex(s => s.name === name);
+      if (si === -1) return;
+      const st = getStatus(si, gi, h);
+      if (st.type === 'off') return;
+      const site = supports[si].site;
+      if (!isSiteIncluded(site, gi) || !isSiteIncluded(site, st.shiftDay)) {
+        delete assignments[key];
+        cleared++;
+      }
+    });
+  });
+  return cleared;
+}
+
+function applySiteFilter(scope) {
+  if (!weeks[currentWeek] || !weeks[currentWeek].days[currentDay]) return;
+  const gi = weeks[currentWeek].days[currentDay].globalIdx;
+  const f  = {};
+  document.querySelectorAll('#sitePanel input[data-site]').forEach(cb => { f[cb.dataset.site] = cb.checked; });
+
+  let cleared = 0;
+  if (scope === 'day') {
+    daySiteFilters[gi] = f;
+    cleared = reconcileSiteExclusions([gi]);
+    trackEdit('site_filter_day', cleared + ' cleared');
+    showToast('Site filter applied to this day' + (cleared ? ` — ${cleared} slot(s) cleared` : ''), 'success');
+  } else {
+    const wl = dayToWeekLabel[gi];
+    if (wl) weekSiteFilters[wl] = f;
+    const week = weeks.find(w => w.label === wl);
+    // Only days still governed by the week default (no day-level override)
+    // are affected by this change.
+    const affectedGis = week ? week.days.filter(d => !daySiteFilters[d.globalIdx]).map(d => d.globalIdx) : [];
+    cleared = reconcileSiteExclusions(affectedGis);
+    trackEdit('site_filter_week', cleared + ' cleared');
+    showToast('Site filter set as week default' + (cleared ? ` — ${cleared} slot(s) cleared` : ''), 'success');
+  }
+  closeSitePanel();
+  render();
+  refreshDayBadges();
+  buildDayTabs();
+}
+function clearDayOverride() {
+  if (!weeks[currentWeek] || !weeks[currentWeek].days[currentDay]) return;
+  const gi = weeks[currentWeek].days[currentDay].globalIdx;
+  delete daySiteFilters[gi];
+  trackEdit('site_filter_clear_day');
+  closeSitePanel();
+  render();
+  refreshDayBadges();
+  buildDayTabs();
+}
+
+// ── More / Help dropdown menus ─────────────────────────────
+function toggleMoreMenu() {
+  const panel = document.getElementById('moreMenu');
+  if (panel.classList.contains('show')) { closeMoreMenu(); return; }
+  closeHelpMenu(); closeSitePanel();
+  const rect = document.getElementById('moreBtn').getBoundingClientRect();
+  panel.style.left = Math.min(rect.left, window.innerWidth - 216) + 'px';
+  panel.style.top  = (rect.bottom + 6) + 'px';
+  panel.classList.add('show');
+  setTimeout(() => document.addEventListener('click', closeMoreMenu, { once: true }), 10);
+}
+function closeMoreMenu() { document.getElementById('moreMenu').classList.remove('show'); }
+
+function toggleHelpMenu() {
+  const panel = document.getElementById('helpMenu');
+  if (panel.classList.contains('show')) { closeHelpMenu(); return; }
+  closeMoreMenu(); closeSitePanel();
+  const rect = document.getElementById('helpBtn').getBoundingClientRect();
+  panel.style.left = Math.min(rect.left, window.innerWidth - 216) + 'px';
+  panel.style.top  = (rect.bottom + 6) + 'px';
+  panel.classList.add('show');
+  setTimeout(() => document.addEventListener('click', closeHelpMenu, { once: true }), 10);
+}
+function closeHelpMenu() { document.getElementById('helpMenu').classList.remove('show'); }
+
+// ── Tutorial ────────────────────────────────────────────────
+const TUTORIAL_STEPS = [
+  { title: 'Welcome to the POC Planner', body: 'This walkthrough covers reading the grid, assigning POCs, the auto-assign tools, the Site filter, and publishing. Use <b>Next</b> / <b>Back</b>, or <b>Skip</b> anytime — replay it later from <b>Help → Take the tour</b>.' },
+  { title: 'Weeks & Days', body: 'Pick a month, then a week, then a day tab up top. A ⚠ on a week pill means at least one hour that week has no coverage. A red badge on a day tab shows how many uncovered hours that day has.' },
+  { title: 'Reading the grid', body: 'Each row is an hour. The <b>POC</b> column shows who\'s currently assigned. The columns to the right show every agent\'s status: <span class="chip chip-avail" style="min-width:auto">avail</span> can be assigned, <span class="chip chip-capped" style="min-width:auto">capped</span> hit their hour cap, <span class="chip chip-restrict" style="min-width:auto">±</span> is ramp-up/wind-down (never assignable), and OFF/VL/LOA for days off.' },
+  { title: 'Assigning POCs', body: 'Click an <b>avail</b> chip to assign that agent. Click the current POC chip to cycle to the next available agent. Right-click a POC chip to <b>lock</b> it (auto-assign/Fill gaps skip locked slots) or unassign it.' },
+  { title: 'Auto-assign tools', body: '<b>Fill gaps</b> only fills empty slots — it never touches existing assignments. <b>Reassign</b> clears every unlocked slot for the week and rebuilds it under the current cap. Change <b>Max hrs/shift</b> to control how many hours in a row one agent can cover.' },
+  { title: 'Site filter', body: 'Open <b>More → Sites…</b> to include/exclude sites (UBT/VNCC/CEB/DAV). Apply to just the day you\'re on, or set it as the week\'s default. Excluding a site immediately clears any of its unlocked assignments that are no longer allowed.' },
+  { title: 'Publishing', body: 'Hit <b>Publish</b> to write the current week to the schedule. Use <b>More → Select days</b> first to publish only specific day(s). <b>Published Weeks</b> shows everything published so far and lets you delete a published week.' }
+];
+let tutStep = 0;
+function startTutorial() {
+  tutStep = 0;
+  renderTutorialStep();
+  document.getElementById('tutorialPanel').classList.add('open');
+}
+function closeTutorial() {
+  document.getElementById('tutorialPanel').classList.remove('open');
+  try { localStorage.setItem('pocPlannerTutorialSeen', '1'); } catch (e) { /* storage unavailable — tutorial will show again next visit */ }
+}
+function renderTutorialStep() {
+  const s = TUTORIAL_STEPS[tutStep];
+  document.getElementById('tutStepTitle').textContent = s.title;
+  document.getElementById('tutStepBody').innerHTML = s.body;
+  document.getElementById('tutBackBtn').style.visibility = tutStep === 0 ? 'hidden' : 'visible';
+  document.getElementById('tutNextBtn').textContent = (tutStep === TUTORIAL_STEPS.length - 1) ? 'Finish' : 'Next';
+  document.getElementById('tutDots').innerHTML =
+    TUTORIAL_STEPS.map((_, i) => `<span class="tut-dot${i === tutStep ? ' active' : ''}"></span>`).join('');
+}
+function tutorialNext() {
+  if (tutStep >= TUTORIAL_STEPS.length - 1) { closeTutorial(); return; }
+  tutStep++;
+  renderTutorialStep();
+}
+function tutorialBack() {
+  if (tutStep === 0) return;
+  tutStep--;
+  renderTutorialStep();
+}
+
+// ── FAQ ─────────────────────────────────────────────────────
+const FAQ_ITEMS = [
+  { q: 'How do I assign someone as POC?', a: 'Click their <b>avail</b> chip for that hour. To swap who covers an already-assigned hour, click the POC chip itself to cycle to the next available agent.' },
+  { q: '\u2019s the difference between Reassign and Fill gaps?'.replace('\u2019','What'), a: '<b>Fill gaps</b> only touches empty, eligible slots — safe to run anytime. <b>Reassign</b> is destructive: it clears every unlocked slot for the whole week first, then rebuilds it, and asks for confirmation before running.' },
+  { q: 'How do I stop a slot from being changed by auto-assign?', a: 'Right-click the POC chip and choose <b>Lock this assignment</b>. Locked slots are skipped by Reassign and Fill gaps, and can\'t be cycled or cleared until unlocked.' },
+  { q: 'What does the % next to each agent\'s name mean?', a: 'Their fairness score for the week: POC hours assigned ÷ hours available. Auto-assign uses this to prefer whoever has covered the smallest share of their available time.' },
+  { q: 'How does the Site filter work?', a: 'Open <b>More → Sites…</b>. Excluding a site removes it from auto-assign, Fill gaps, manual clicks, and cycling — for the current day, or as the week\'s default. Excluded agents show an "excluded" chip instead of "avail", and any existing unlocked assignments of theirs in the affected day(s) are cleared immediately.' },
+  { q: 'Why is an hour showing "NO COVERAGE"?', a: 'Nobody is available that hour — everyone is off/on leave, restricted (ramp-up/wind-down), capped out, or the only available agent(s) are excluded by the Site filter.' },
+  { q: 'How do I publish just one or two days instead of the whole week?', a: 'Open <b>More → Select days</b>, check the day(s) you want, then hit <b>Publish</b> — it writes only those columns and leaves the rest of the published week untouched.' },
+  { q: 'Where can I see what\'s already been published?', a: 'Click <b>Published Weeks</b> in the top bar for a breakdown of every published week by day and agent. You can delete a whole published week from there too.' }
+];
+function openFaq() {
+  renderFaq();
+  document.getElementById('faqPanel').classList.add('open');
+}
+function closeFaq() { document.getElementById('faqPanel').classList.remove('open'); }
+function renderFaq() {
+  document.getElementById('faqBody').innerHTML = FAQ_ITEMS.map((item, i) => `
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaqItem(${i})">
+        <span>${item.q}</span>
+        <span class="material-symbols-outlined faq-caret" id="faqCaret${i}">expand_more</span>
+      </div>
+      <div class="faq-a" id="faqA${i}">${item.a}</div>
+    </div>
+  `).join('');
+}
+function toggleFaqItem(i) {
+  const a = document.getElementById('faqA' + i);
+  const caret = document.getElementById('faqCaret' + i);
+  const open = a.classList.toggle('open');
+  caret.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+const assignments = {};   // gk(d,h) → name
+const locked      = {};   // gk(d,h) → true
+
+// History: weekLabel → { days, assignments (copy) } — local, in-session only
+const history     = {};
+
+// Which week labels were found already-published on the sheet at boot time.
+const publishedWeekLabels = new Set();
+
+// Context menu state
+let ctxTarget = null; // { d, h }
+
+// Day-selection state (for partial publish)
+let daySelectMode = false;
+const selectedDays = new Set(); // day-index (within current week) selected for publish
+
+// ─────────────────────────────────────────────────────────────
+//  Unified error handling helpers
+// ─────────────────────────────────────────────────────────────
+// Every google.script.run chain in this file routes failures through
+// here so (a) the user always sees a toast, and (b) the failure is
+// logged server-side into the same Change Log as everything else.
+function reportError(context, err, weekLabel) {
+  const message = (err && err.message) ? err.message : String(err);
+  showToast(context + ' failed: ' + message, 'error');
+  if (typeof google !== 'undefined' && google.script) {
+    google.script.run
+      .withFailureHandler(() => { /* logging itself failed — nothing more we can do client-side */ })
+      .logClientError(context, message, weekLabel || (weeks[currentWeek] ? weeks[currentWeek].label : ''));
+  }
+}
+
+// Toggles a button into/out of its "loading" visual state (spinner
+// replaces icon, button disabled) so long-running server calls give
+// immediate feedback right where the user clicked.
+function setBtnLoading(btnId, isLoading) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = isLoading;
+  btn.classList.toggle('is-loading', isLoading);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Boot
+// ─────────────────────────────────────────────────────────────
+window.addEventListener('load', () => { bootApp(); });
+
+function bootApp() {
+  const overlay = document.getElementById('loadOverlay');
+  overlay.classList.remove('error', 'fade');
+  overlay.style.display = 'flex';
+  document.getElementById('loadMsg').textContent = 'Loading schedule data…';
+
+  if (typeof google === 'undefined' || !google.script) {
+    showLoadError('Running outside Google Apps Script — no data source available.');
+    return;
+  }
+  google.script.run
+    .withFailureHandler(() => {})
+    .logOpen();
+  google.script.run
+    .withSuccessHandler(onDataLoaded)
+    .withFailureHandler(e => showLoadError(e.message))
+    .getScheduleData();
+}
+
+function retryBoot() { bootApp(); }
+
+function showLoadError(message) {
+  const overlay = document.getElementById('loadOverlay');
+  overlay.classList.add('error');
+  document.getElementById('loadMsg').textContent = 'Couldn\u2019t load the planner — ' + message;
+  reportError('boot', { message });
+}
+
+function onDataLoaded(result) {
+  if (!result.ok) { showLoadError(result.error); return; }
+  supports = result.supports;
+  allDays  = result.days;
+
+  buildWeeks();
+
+  document.getElementById('loadMsg').textContent = 'Loading published schedule…';
+  google.script.run
+    .withSuccessHandler(pubResult => {
+      try {
+        hydrateFromPublished(pubResult);
+        finishBoot();
+      } catch (err) {
+        showLoadError('client error after load — ' + err.message);
+      }
+    })
+    .withFailureHandler(e => {
+      showToast('Could not load published schedule — starting blank (' + e.message + ')', 'warning');
+      reportError('loadPublishedOnBoot', e);
+      try { finishBoot(); } catch (err) { showLoadError('client error after load — ' + err.message); }
+    })
+    .getAllPublishedWeeks();
+}
+
+// Merge server-published assignments into the local `assignments` map.
+function hydrateFromPublished(result) {
+  if (!result || !result.ok) return;
+  result.weeks.forEach(pw => {
+    const localWeek = weeks.find(w => w.label === pw.label);
+    if (!localWeek) return;
+    publishedWeekLabels.add(pw.label);
+    const n = Math.min(localWeek.days.length, pw.days.length);
+    Object.entries(pw.assignments).forEach(([key, name]) => {
+      const parts = key.split(':');
+      const di = parseInt(parts[0], 10), h = parseInt(parts[1], 10);
+      if (di >= n) return;
+      const gi = localWeek.days[di].globalIdx;
+      assignments[gk(gi, h)] = name;
+    });
+  });
+}
+
+function finishBoot() {
+  const currentMonthIdx = findCurrentMonth();
+  selectMonth(currentMonthIdx !== -1 ? currentMonthIdx : 0, false);
+  selectWeek(findCurrentWeekIdx(), false);
+
+  const week = weeks[currentWeek];
+  if (week && !publishedWeekLabels.has(week.label)) {
+    autoAssignWeek(false);
+  } else {
+    render();
+  }
+
+  hideLoader();
+  showToast('Loaded ' + supports.length + ' agents · ' + weeks.length + ' weeks', 'success');
+
+  let seenTutorial = false;
+  try { seenTutorial = localStorage.getItem('pocPlannerTutorialSeen') === '1'; } catch (e) { /* storage unavailable */ }
+  if (!seenTutorial) setTimeout(startTutorial, 700);
+}
+
+function refreshFromServer() {
+  location.reload();
+}
+
+function hideLoader() {
+  const el = document.getElementById('loadOverlay');
+  el.classList.add('fade');
+  setTimeout(() => el.style.display = 'none', 420);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Keyboard navigation
+// ─────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    hideCtxMenu();
+    closeHistory();
+    closeMoreMenu();
+    closeHelpMenu();
+    closeSitePanel();
+    closeFaq();
+    return;
+  }
+
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    e.preventDefault();
+    const week = weeks[currentWeek];
+    if (!week) return;
+    const max = week.days.length - 1;
+    if (e.key === 'ArrowLeft'  && currentDay > 0)   currentDay--;
+    if (e.key === 'ArrowRight' && currentDay < max)  currentDay++;
+    document.querySelectorAll('.day-tab').forEach((t, j) => t.classList.toggle('active', j === currentDay));
+    render();
+  }
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    const wrap = document.getElementById('tblWrap');
+    wrap.scrollBy({ top: e.key === 'ArrowDown' ? 40 : -40, behavior: 'smooth' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+//  Edit batching → server log
+// ─────────────────────────────────────────────────────────────
+let editBatch = [];
+
+function trackEdit(action, detail) {
+  editBatch.push(action + (detail ? ':' + detail : ''));
+}
+
+function flushEditBatch() {
+  if (!editBatch.length || typeof google === 'undefined' || !google.script) { editBatch = []; return; }
+  const week = weeks[currentWeek] ? weeks[currentWeek].label : '';
+  const counts = {};
+  editBatch.forEach(e => { const k = e.split(':')[0]; counts[k] = (counts[k] || 0) + 1; });
+  const summary = Object.entries(counts).map(([k, c]) => k + ':' + c).join(', ') + ' (' + editBatch.length + ' total)';
+  google.script.run
+    .withFailureHandler(e => reportError('logEditBatch', e, week))
+    .logEditBatch(JSON.stringify({ week, summary }));
+  editBatch = [];
+}
+
+window.addEventListener('beforeunload', flushEditBatch);
+
+// Global safety net — catches any runtime error (undefined function/var,
+// null deref, etc.) anywhere in the app after boot, so a bug in one
+// render/click path surfaces as a toast instead of silently freezing
+// the UI with no feedback.
+window.addEventListener('error', e => {
+  reportError('runtime', { message: e.message + ' (' + e.filename + ':' + e.lineno + ')' });
+});
+window.addEventListener('unhandledrejection', e => {
+  reportError('unhandled_promise', { message: e.reason && e.reason.message ? e.reason.message : String(e.reason) });
+});
+
+// ─────────────────────────────────────────────────────────────
+//  Week grouping
+// ─────────────────────────────────────────────────────────────
+function parseLabel(label) {
+  if (!label) return null;
+  const m1 = label.match(/([A-Za-z]{3})-(\d{1,2})/);
+  if (m1) {
+    const mon = MON_MAP[m1[1]];
+    if (mon !== undefined) {
+      const d = parseInt(m1[2]);
+      return new Date(guessYear(mon, d), mon, d);
+    }
+  }
+  const m2 = label.match(/(\d{1,2})\/(\d{1,2})/);
+  if (m2) {
+    return new Date(guessYear(parseInt(m2[1]) - 1, parseInt(m2[2])), parseInt(m2[1]) - 1, parseInt(m2[2]));
+  }
+  return null;
+}
+
+function guessYear(mon, day) {
+  const now = new Date();
+  const y   = now.getFullYear();
+  const c   = new Date(y, mon, day);
+  if ((now - c) > 180 * 86400 * 1000) return y + 1;
+  if ((c - now) > 365 * 86400 * 1000) return y - 1;
+  return y;
+}
+
+function buildWeeks() {
+  const daysWithDates = allDays.map((label, idx) => ({
+    label, globalIdx: idx, date: parseLabel(label)
+  })).filter(d => d.date);
+
+  weeks = [];
+  const grouped = {};
+
+  daysWithDates.forEach(d => {
+    const date = new Date(d.date);
+    const dayOfWeek = date.getDay();
+    const sunday = new Date(date.getFullYear(), date.getMonth(), date.getDate() - dayOfWeek);
+    const sundayKey = sunday.toISOString().split('T')[0];
+    if (!grouped[sundayKey]) grouped[sundayKey] = [];
+    grouped[sundayKey].push(d);
+  });
+
+  Object.keys(grouped).sort().forEach(sundayKey => {
+    const daysList = grouped[sundayKey];
+    const firstDate = daysList[0].date;
+    const mm = String(firstDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(firstDate.getDate()).padStart(2, '0');
+    weeks.push({
+      label: 'WS' + mm + dd,
+      month: firstDate.getMonth() + 1,
+      days:  daysList.sort((a, b) => a.globalIdx - b.globalIdx)
+    });
+  });
+
+  weeks.forEach(w => w.days.forEach(d => { dayToWeekLabel[d.globalIdx] = w.label; }));
+
+  renderMonthFilter();
+  renderWeekPills();
+}
+
+function findCurrentMonth() {
+  const m = new Date().getMonth() + 1;
+  return weeks.findIndex(w => w.month === m);
+}
+
+function findCurrentWeekIdx() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  for (let w = 0; w < weeks.length; w++) {
+    for (const d of weeks[w].days) {
+      if (d.date) {
+        const dd = new Date(d.date); dd.setHours(0,0,0,0);
+        if (dd.getTime() === today.getTime()) return w;
+      }
+    }
+  }
+  return weeks.length > 0 ? weeks.length - 1 : 0;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Month / Week / Day UI
+// ─────────────────────────────────────────────────────────────
+function renderMonthFilter() {
+  const container = document.getElementById('monthFilter');
+  container.innerHTML = '';
+  const uniqueMonths = [...new Set(weeks.map(w => w.month))].sort((a, b) => a - b);
+  uniqueMonths.forEach(m => {
+    const btn = document.createElement('button');
+    btn.className = 'month-btn';
+    btn.textContent = MON_NAMES[m - 1];
+    btn.dataset.month = m;
+    btn.onclick = () => selectMonth(weeks.findIndex(w => w.month === m), true);
+    container.appendChild(btn);
+  });
+}
+
+function selectMonth(weekIdx, rerender) {
+  if (weekIdx < 0 || weekIdx >= weeks.length) return;
+  flushEditBatch();
+  const selectedMonth = weeks[weekIdx].month;
+  currentMonth = selectedMonth;
+  currentWeek  = weekIdx;
+  currentDay   = 0;
+  exitDaySelectMode();
+
+  document.querySelectorAll('.month-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.month) === selectedMonth);
+  });
+  renderWeekPills();
+  buildDayTabs();
+  if (rerender) render();
+}
+
+function renderWeekPills() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const container = document.getElementById('weekPills');
+  container.innerHTML = '';
+  const monthWeeks = weeks.filter(w => w.month === currentMonth);
+  monthWeeks.forEach((w) => {
+    const globalIdx = weeks.indexOf(w);
+    const pill = document.createElement('button');
+    pill.className = 'week-pill';
+    pill.title = w.days.map(d => d.label).join(', ');
+
+    const hasToday = w.days.some(d => d.date && new Date(d.date).setHours(0,0,0,0) === today.getTime());
+    if (hasToday) pill.classList.add('today-week');
+
+    let weekUncov = 0;
+    w.days.forEach(d => {
+      HOURS.forEach(h => {
+        if (!assignments[gk(d.globalIdx, h)] && getAvail(d.globalIdx, h).length > 0) weekUncov++;
+      });
+    });
+
+    pill.textContent = w.label;
+    if (weekUncov > 0) pill.textContent += ' ⚠';
+    pill.onclick = () => selectWeek(globalIdx, true);
+    container.appendChild(pill);
+  });
+  const monthWeeksArr = weeks.filter(w => w.month === currentMonth);
+  const localIdx = monthWeeksArr.findIndex(w => w === weeks[currentWeek]);
+  document.querySelectorAll('.week-pill').forEach((p, i) => p.classList.toggle('active', i === localIdx));
+}
+
+function selectWeek(idx, rerender) {
+  flushEditBatch();
+  currentWeek = Math.max(0, Math.min(idx, weeks.length - 1));
+  currentDay  = 0;
+  exitDaySelectMode();
+  const monthWeeks  = weeks.filter(w => w.month === currentMonth);
+  const localIdx    = monthWeeks.findIndex(w => w === weeks[currentWeek]);
+  document.querySelectorAll('.week-pill').forEach((p, i) => p.classList.toggle('active', i === localIdx));
+  buildDayTabs();
+  if (rerender) render();
+}
+
+function buildDayTabs() {
+  const strip = document.getElementById('dayStrip');
+  strip.innerHTML = '';
+  strip.classList.toggle('selecting', daySelectMode);
+  if (!weeks[currentWeek]) return;
+
+  weeks[currentWeek].days.forEach((d, i) => {
+    const tab = document.createElement('button');
+    tab.className = 'day-tab' + (i === currentDay ? ' active' : '');
+    tab.dataset.dayIdx = i;
+
+    let dayName = d.label, dateStr = '';
+    const parts = d.label.match(/^([A-Za-z]+)\s+(.+)$/);
+    if (parts) { dayName = parts[1]; dateStr = parts[2]; }
+
+    const gi = d.globalIdx;
+    const uncov = countUncovered(gi);
+    const isChecked = selectedDays.has(i);
+
+    tab.innerHTML = `
+      <span class="dt-check${isChecked ? ' checked' : ''}">${isChecked ? '✓' : ''}</span>
+      <span class="dt-name">${dayName}</span>
+      <span class="dt-date">${dateStr}</span>
+      ${uncov > 0 ? `<span class="dt-badge">${uncov}</span>` : ''}
+      ${daySiteFilters[gi] ? '<span class="material-symbols-outlined dt-site-flag" title="Site filter override for this day">filter_alt</span>' : ''}
+    `;
+    tab.onclick = (e) => {
+      if (daySelectMode) {
+        toggleDaySelected(i);
+        return;
+      }
+      currentDay = i;
+      document.querySelectorAll('.day-tab').forEach((t, j) => t.classList.toggle('active', j === i));
+      render();
+    };
+    strip.appendChild(tab);
+  });
+}
+
+function countUncovered(gi) {
+  return HOURS.filter(h => !assignments[gk(gi, h)] && getAvail(gi, h).length > 0).length;
+}
+
+function refreshDayBadges() {
+  if (!weeks[currentWeek]) return;
+  const tabs = document.querySelectorAll('.day-tab');
+  weeks[currentWeek].days.forEach((d, i) => {
+    const tab = tabs[i];
+    if (!tab) return;
+    const gi = d.globalIdx;
+    const uncov = countUncovered(gi);
+    let badge = tab.querySelector('.dt-badge');
+    if (uncov > 0) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'dt-badge';
+        tab.appendChild(badge);
+      }
+      badge.textContent = uncov;
+    } else if (badge) {
+      badge.remove();
+    }
+  });
+  renderWeekPills();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Day-selection mode (for publishing selected day(s) instead of
+//  the whole week). Purely a client-side selection UI — the actual
+//  scoping happens when publishPOC() builds its payload.
+// ─────────────────────────────────────────────────────────────
+function toggleDaySelectMode() {
+  daySelectMode = !daySelectMode;
+  document.getElementById('daySelectBar').classList.toggle('open', daySelectMode);
+  document.getElementById('selectDaysBtn').classList.toggle('primary', daySelectMode);
+  if (!daySelectMode) selectedDays.clear();
+  buildDayTabs();
+  updatePublishLabel();
+}
+
+function exitDaySelectMode() {
+  daySelectMode = false;
+  selectedDays.clear();
+  const bar = document.getElementById('daySelectBar');
+  if (bar) bar.classList.remove('open');
+  const btn = document.getElementById('selectDaysBtn');
+  if (btn) btn.classList.remove('primary');
+  updatePublishLabel();
+}
+
+function toggleDaySelected(i) {
+  if (selectedDays.has(i)) selectedDays.delete(i); else selectedDays.add(i);
+  document.getElementById('daySelectCount').textContent = selectedDays.size;
+  buildDayTabs();
+  updatePublishLabel();
+}
+
+function selectAllDays() {
+  if (!weeks[currentWeek]) return;
+  weeks[currentWeek].days.forEach((_, i) => selectedDays.add(i));
+  document.getElementById('daySelectCount').textContent = selectedDays.size;
+  buildDayTabs();
+  updatePublishLabel();
+}
+
+function clearDaySelection() {
+  selectedDays.clear();
+  document.getElementById('daySelectCount').textContent = 0;
+  buildDayTabs();
+  updatePublishLabel();
+}
+
+function updatePublishLabel() {
+  const label = document.getElementById('publishBtnLabel');
+  if (!label) return;
+  const week = weeks[currentWeek];
+  const total = week ? week.days.length : 0;
+  if (!daySelectMode || selectedDays.size === 0 || selectedDays.size === total) {
+    label.textContent = 'Publish week';
+  } else if (selectedDays.size === 1) {
+    label.textContent = 'Publish 1 day';
+  } else {
+    label.textContent = 'Publish ' + selectedDays.size + ' days';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Core logic helpers
+// ─────────────────────────────────────────────────────────────
+function isOff(v) {
+  return v === null || v === undefined || /^(off|vl|loa)$/i.test(String(v));
+}
+
+function getStatus(si, globalDayIdx, h) {
+  const sched = supports[si].sched;
+
+  const todayRaw = sched[globalDayIdx];
+  if (!isOff(todayRaw)) {
+    const start = parseInt(todayRaw, 10);
+    if (!isNaN(start)) {
+      if (h >= start && h < start + SHIFT) {
+        const sh = h - start;
+        if (sh < R_START || sh >= SHIFT - R_END) return { type: 'restrict', shiftStart: start, shiftDay: globalDayIdx };
+        return { type: 'avail', shiftStart: start, shiftDay: globalDayIdx };
+      }
+    }
+  }
+
+  if (globalDayIdx > 0) {
+    const prevRaw = sched[globalDayIdx - 1];
+    if (!isOff(prevRaw)) {
+      const prevStart = parseInt(prevRaw, 10);
+      if (!isNaN(prevStart)) {
+        const prevEnd = prevStart + SHIFT;
+        if (prevEnd > 24 && h < prevEnd - 24) {
+          const sh = (h + 24) - prevStart;
+          if (sh < R_START || sh >= SHIFT - R_END) return { type: 'restrict', shiftStart: prevStart, shiftDay: globalDayIdx - 1 };
+          return { type: 'avail', shiftStart: prevStart, shiftDay: globalDayIdx - 1 };
+        }
+      }
+    }
+  }
+
+  return { type: 'off' };
+}
+
+function gk(d, h) { return d + ':' + h; }
+
+function getAvail(globalDayIdx, h) {
+  return supports.filter((s, si) => {
+    const st = getStatus(si, globalDayIdx, h);
+    if (st.type !== 'avail') return false;
+    // A shift spilling past midnight belongs to both the calendar day the
+    // hour falls on AND the day the shift actually started (st.shiftDay).
+    // Both must include this site, or the slot isn't offered.
+    return isSiteIncluded(s.site, globalDayIdx) && isSiteIncluded(s.site, st.shiftDay);
+  });
+}
+
+function getShiftKey(si, globalDayIdx, h) {
+  const status = getStatus(si, globalDayIdx, h);
+  if (status.type === 'off') return null;
+  return si + '_' + status.shiftDay + '_' + status.shiftStart;
+}
+
+function getShiftCounts(globalWeekDays) {
+  const counts = {};
+  globalWeekDays.forEach(d => {
+    HOURS.forEach(h => {
+      const name = assignments[gk(d.globalIdx, h)];
+      if (name) {
+        const si = supports.findIndex(s => s.name === name);
+        if (si === -1) return;
+        const sk = getShiftKey(si, d.globalIdx, h);
+        if (sk) counts[sk] = (counts[sk] || 0) + 1;
+      }
+    });
+  });
+  return counts;
+}
+
+// Total available hours per agent across the whole week — computed once
+// per auto-assign run since availability doesn't change mid-run.
+function computeWeekAvailability(weekDays) {
+  const availHrsWeek = {};
+  supports.forEach(s => { availHrsWeek[s.name] = 0; });
+  weekDays.forEach(d => {
+    HOURS.forEach(h => {
+      supports.forEach((s, si) => {
+        const st = getStatus(si, d.globalIdx, h);
+        if (st.type === 'avail' && isSiteIncluded(s.site, d.globalIdx) && isSiteIncluded(s.site, st.shiftDay)) availHrsWeek[s.name]++;
+      });
+    });
+  });
+  return availHrsWeek;
+}
+
+// Total POC hours already assigned per agent across the week so far —
+// seeded from current assignments (including anything locked), then kept
+// up to date incrementally as auto-assign / gap-fill hand out new slots.
+function computeWeekTotals(weekDays) {
+  const totals = {};
+  supports.forEach(s => { totals[s.name] = 0; });
+  weekDays.forEach(d => {
+    HOURS.forEach(h => {
+      const name = assignments[gk(d.globalIdx, h)];
+      if (name) totals[name] = (totals[name] || 0) + 1;
+    });
+  });
+  return totals;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Fairness score
+// ─────────────────────────────────────────────────────────────
+function computeFairnessForWeek() {
+  const week = weeks[currentWeek];
+  if (!week) return {};
+
+  const pocHrs  = {};
+  const availHrs = {};
+
+  supports.forEach(s => { pocHrs[s.name] = 0; availHrs[s.name] = 0; });
+
+  week.days.forEach(d => {
+    HOURS.forEach(h => {
+      const gi = d.globalIdx;
+      supports.forEach((s, si) => {
+        const st = getStatus(si, gi, h);
+        if (st.type === 'avail' && isSiteIncluded(s.site, gi) && isSiteIncluded(s.site, st.shiftDay)) availHrs[s.name]++;
+        if (assignments[gk(gi, h)] === s.name) pocHrs[s.name]++;
+      });
+    });
+  });
+
+  const scores = {};
+  supports.forEach(s => {
+    const avail = availHrs[s.name];
+    scores[s.name] = avail > 0 ? Math.round((pocHrs[s.name] / avail) * 100) : 0;
+  });
+  return { scores, pocHrs, availHrs };
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Cross-midnight conflict detection
+// ─────────────────────────────────────────────────────────────
+function detectConflicts() {
+  const conflicts = new Set();
+  const week = weeks[currentWeek];
+  if (!week) return conflicts;
+
+  supports.forEach(s => {
+    week.days.forEach((d, di) => {
+      if (di === 0) return;
+      const prevDay = week.days[di - 1];
+      const gi  = d.globalIdx;
+      const pgi = prevDay.globalIdx;
+
+      if (assignments[gk(pgi, 23)] === s.name && assignments[gk(gi, 0)] === s.name) {
+        const st23 = getStatus(supports.indexOf(s), pgi, 23);
+        const st0  = getStatus(supports.indexOf(s), gi,  0);
+        if (st23.type !== 'off' && st0.type !== 'off') {
+          if (st0.shiftDay === pgi) {
+            conflicts.add(gk(gi, 0));
+            conflicts.add(gk(pgi, 23));
+          }
+        }
+      }
+    });
+  });
+
+  return conflicts;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Candidate selection — shared by full auto-assign and gap-filler
+// ─────────────────────────────────────────────────────────────
+function pickCandidate(gIdx, h, weekDays, shiftCounts, weekTotals, availHrsWeek) {
+  const avail = getAvail(gIdx, h);
+  if (!avail.length) return null;
+
+  const eligible = avail.filter(s => {
+    const si = supports.indexOf(s);
+    const sk = getShiftKey(si, gIdx, h);
+    const count = shiftCounts[sk] || 0;
+    if (count >= MAX_CAP) return false;
+
+    if (count > 0) {
+      const hasConsecutive = HOURS.some(prevH => {
+        if (Math.abs(prevH - h) !== 1 && !(h === 0 && prevH === 23) && !(h === 23 && prevH === 0)) return false;
+        return weekDays.some(wd => {
+          if (assignments[gk(wd.globalIdx, prevH)] === s.name) {
+            const prevSk = getShiftKey(si, wd.globalIdx, prevH);
+            return prevSk === sk;
+          }
+          return false;
+        });
+      });
+      if (!hasConsecutive) return false;
+    }
+    return true;
+  });
+
+  if (!eligible.length) return null;
+
+  eligible.sort((a, b) => {
+    const countA = shiftCounts[getShiftKey(supports.indexOf(a), gIdx, h)] || 0;
+    const countB = shiftCounts[getShiftKey(supports.indexOf(b), gIdx, h)] || 0;
+    // Finish an already-started block before starting a new person.
+    if (countA !== countB) return countB - countA;
+
+    // Tiebreaker: prefer whoever has covered the smaller share of their
+    // available hours as POC so far this week — same ratio shown in the
+    // '%' fairness badge, now actually driving the pick.
+    if (weekTotals && availHrsWeek) {
+      const availA = availHrsWeek[a.name] || 0;
+      const availB = availHrsWeek[b.name] || 0;
+      const shareA = availA > 0 ? (weekTotals[a.name] || 0) / availA : 1;
+      const shareB = availB > 0 ? (weekTotals[b.name] || 0) / availB : 1;
+      if (shareA !== shareB) return shareA - shareB;
+    }
+    return 0;
+  });
+  return eligible[0].name;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Auto-assign (destructive — clears all unlocked slots, then rebuilds)
+// ─────────────────────────────────────────────────────────────
+function autoAssignWeek(track) {
+  if (!weeks[currentWeek]) return;
+  const weekDays = weeks[currentWeek].days;
+
+  saveHistory();
+
+  weekDays.forEach(d => {
+    HOURS.forEach(h => {
+      if (!locked[gk(d.globalIdx, h)]) delete assignments[gk(d.globalIdx, h)];
+    });
+  });
+
+  const availHrsWeek = computeWeekAvailability(weekDays);
+  const weekTotals    = computeWeekTotals(weekDays); // starts at 0s right after the clear above
+  // Computed ONCE, then updated incrementally below. This used to be
+  // recomputed from scratch on every single hour (168 redundant full-week
+  // scans per run) — harmless with ~6 agents, very expensive now that the
+  // LDAP fix + DAV site made the agent list much bigger.
+  const shiftCounts = getShiftCounts(weekDays);
+
+  weekDays.forEach(d => {
+    HOURS.forEach(h => {
+      const gIdx = d.globalIdx;
+      if (locked[gk(gIdx, h)]) return;
+      const name = pickCandidate(gIdx, h, weekDays, shiftCounts, weekTotals, availHrsWeek);
+      if (name) {
+        assignments[gk(gIdx, h)] = name;
+        weekTotals[name] = (weekTotals[name] || 0) + 1;
+        const si = supports.findIndex(s => s.name === name);
+        const sk = si !== -1 ? getShiftKey(si, gIdx, h) : null;
+        if (sk) shiftCounts[sk] = (shiftCounts[sk] || 0) + 1;
+      }
+    });
+  });
+
+  if (track !== false) trackEdit('reassign_week', weekDays.length * HOURS.length + ' slots');
+  render();
+  refreshDayBadges();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Incremental gap-fill — only touches currently UNASSIGNED, eligible
+//  slots. Never clears or overwrites an existing assignment. This is
+//  now a MANUAL, explicit action only (see "Fill gaps" button) — raising
+//  the cap no longer triggers this automatically.
+// ─────────────────────────────────────────────────────────────
+function fillGapsForWeek() {
+  if (!weeks[currentWeek]) return 0;
+  const weekDays = weeks[currentWeek].days;
+  let filled = 0;
+
+  const availHrsWeek = computeWeekAvailability(weekDays);
+  const weekTotals    = computeWeekTotals(weekDays); // reflects existing assignments as a starting point
+  const shiftCounts   = getShiftCounts(weekDays); // computed once, updated incrementally below
+
+  weekDays.forEach(d => {
+    HOURS.forEach(h => {
+      const gIdx = d.globalIdx;
+      const key  = gk(gIdx, h);
+      if (assignments[key]) return;
+
+      const name = pickCandidate(gIdx, h, weekDays, shiftCounts, weekTotals, availHrsWeek);
+      if (name) {
+        assignments[key] = name;
+        weekTotals[name] = (weekTotals[name] || 0) + 1;
+        const si = supports.findIndex(s => s.name === name);
+        const sk = si !== -1 ? getShiftKey(si, gIdx, h) : null;
+        if (sk) shiftCounts[sk] = (shiftCounts[sk] || 0) + 1;
+        filled++;
+      }
+    });
+  });
+
+  if (filled > 0) trackEdit('fill_gaps', filled + ' slots');
+  return filled;
+}
+
+// Explicit, user-initiated gap fill (the "Fill gaps" button).
+function manualFillGaps() {
+  setBtnLoading('fillGapsBtn', true);
+  try {
+    const added = fillGapsForWeek();
+    render();
+    refreshDayBadges();
+    showToast(added > 0 ? `Filled ${added} open slot(s)` : 'No open eligible slots to fill', added > 0 ? 'success' : 'warning');
+  } catch (e) {
+    reportError('fillGaps', e);
+  } finally {
+    setBtnLoading('fillGapsBtn', false);
+  }
+}
+
+// Fired when the Max hrs/shift field changes (blur or Enter).
+// IMPORTANT: this ONLY updates the cap number and re-renders badges/colors.
+// It no longer auto-fills anything — use the "Fill gaps" button for that.
+function onCapChange() {
+  const el = document.getElementById('capInput');
+  const v  = parseInt(el.value, 10);
+  if (isNaN(v) || v < 1 || v > 9) {
+    showToast('Enter a value between 1 and 9', 'error');
+    el.value = MAX_CAP;
+    return;
+  }
+  const prevCap = MAX_CAP;
+  MAX_CAP = v;
+  trackEdit('cap_change', prevCap + '->' + v);
+  render();
+  refreshDayBadges();
+  showToast(`Cap set to ${v}h — click "Fill gaps" if you want to auto-fill new open slots`, 'success');
+}
+
+// Explicit "Reassign" button — destructive by design (clears unlocked
+// slots and rebuilds under the current cap), so it's confirmed first.
+function applyCapAndReassign() {
+  const el = document.getElementById('capInput');
+  const v  = parseInt(el.value, 10);
+  if (isNaN(v) || v < 1 || v > 9) {
+    showToast('Enter a value between 1 and 9', 'error');
+    return;
+  }
+  if (!confirm('This clears every unlocked assignment for the current week and rebuilds it from scratch. Continue?')) return;
+  setBtnLoading('reassignBtn', true);
+  try {
+    MAX_CAP = v;
+    autoAssignWeek();
+  } catch (e) {
+    reportError('reassign', e);
+  } finally {
+    setBtnLoading('reassignBtn', false);
+  }
+}
+
+function clearDay() {
+  if (!weeks[currentWeek] || !weeks[currentWeek].days[currentDay]) return;
+  const gi = weeks[currentWeek].days[currentDay].globalIdx;
+  HOURS.forEach(h => {
+    if (!locked[gk(gi, h)]) delete assignments[gk(gi, h)];
+  });
+  trackEdit('clear_day');
+  render();
+  refreshDayBadges();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Copy week forward
+// ─────────────────────────────────────────────────────────────
+function copyWeekForward() {
+  const nextWeekIdx = currentWeek + 1;
+  if (nextWeekIdx >= weeks.length) {
+    showToast('No next week available in schedule', 'error');
+    return;
+  }
+
+  const srcWeek  = weeks[currentWeek];
+  const dstWeek  = weeks[nextWeekIdx];
+
+  let copied = 0;
+  const minDays = Math.min(srcWeek.days.length, dstWeek.days.length);
+  for (let di = 0; di < minDays; di++) {
+    const srcGi = srcWeek.days[di].globalIdx;
+    const dstGi = dstWeek.days[di].globalIdx;
+    HOURS.forEach(h => {
+      const srcName = assignments[gk(srcGi, h)];
+      if (!srcName) return;
+      const si = supports.findIndex(s => s.name === srcName);
+      if (si === -1) return;
+      const st = getStatus(si, dstGi, h);
+      if (st.type === 'avail') {
+        if (!locked[gk(dstGi, h)]) {
+          assignments[gk(dstGi, h)] = srcName;
+          copied++;
+        }
+      }
+    });
+  }
+
+  trackEdit('copy_forward', copied + ' slots');
+
+  selectWeek(nextWeekIdx, true);
+  showToast(`Copied ${copied} slots to ${dstWeek.label} (availability-checked)`, 'success');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Per-day shift counts (for cap display) — includes adjacent days so
+//  cross-midnight shifts are counted correctly against MAX_CAP.
+// ─────────────────────────────────────────────────────────────
+function getDayShiftCounts(gi) {
+  const counts = {};
+  [gi - 1, gi, gi + 1].forEach(day => {
+    if (day < 0 || day >= allDays.length) return;
+    HOURS.forEach(h => {
+      const name = assignments[gk(day, h)];
+      if (!name) return;
+      const si = supports.findIndex(s => s.name === name);
+      if (si === -1) return;
+      const sk = getShiftKey(si, day, h);
+      if (sk) counts[sk] = (counts[sk] || 0) + 1;
+    });
+  });
+  return counts;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Render table
+// ─────────────────────────────────────────────────────────────
+function render() {
+  try {
+    renderInner();
+  } catch (err) {
+    reportError('render', err);
+  }
+}
+
+function renderInner() {
+  if (!weeks[currentWeek] || !weeks[currentWeek].days[currentDay]) return;
+  const d           = weeks[currentWeek].days[currentDay].globalIdx;
+  const shiftCounts = getDayShiftCounts(d);
+  const now         = new Date().getHours();
+  const conflicts   = detectConflicts();
+  const { scores, pocHrs, availHrs } = computeFairnessForWeek();
+
+  const thead = document.getElementById('thead');
+  const tbody = document.getElementById('tbody');
+  thead.innerHTML = '';
+  tbody.innerHTML = '';
+
+  const hrow = document.createElement('tr');
+  addTH(hrow, 'MNL TIME', 'th-time');
+  addTH(hrow, 'POC', 'th-poc');
+
+  supports.forEach((s) => {
+    const th  = document.createElement('th');
+    th.className = 'th-support';
+
+    let count = 0;
+    for (let h = 0; h < 24; h++) {
+      if (assignments[gk(d, h)] === s.name) count++;
+    }
+
+    const badgeCls = count === 0 ? 'zero' : count > MAX_CAP ? 'over' : 'ok';
+    const fair = scores[s.name] || 0;
+    const fairCls = fair >= 30 ? 'fair-hi' : fair >= 10 ? 'fair-mid' : 'fair-lo';
+    const fairLabel = availHrs[s.name] > 0 ? fair + '%' : '';
+
+    const siteDotColor = SITE_DOT[s.site] || '#999';
+    th.innerHTML = `<div class="ag-hdr">
+      <div style="position:relative;display:inline-block">
+        ${getMomaImg(s.name)}
+        <span style="position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;border-radius:50%;background:${siteDotColor};border:2px solid #fff"></span>
+      </div>
+      <span class="ag-name">${s.name}</span>
+      <div class="ag-meta">
+        <span class="ag-badge ${badgeCls}">${count > 0 ? count + 'h' : '·'}</span>
+        ${fairLabel ? `<span class="ag-fair ${fairCls}" title="POC load: ${pocHrs[s.name]}h / ${availHrs[s.name]}h avail">${fairLabel}</span>` : ''}
+      </div>
+    </div>`;
+    hrow.appendChild(th);
+  });
+  thead.appendChild(hrow);
+
+  HOURS.forEach(h => {
+    const tr = document.createElement('tr');
+    if (h === now) tr.classList.add('active-hour');
+
+    const tc = document.createElement('td');
+    tc.className = 'td-time';
+    tc.textContent = String(h).padStart(2, '0') + ':00';
+    tr.appendChild(tc);
+
+    const pocName = assignments[gk(d, h)];
+    const pocTd   = document.createElement('td');
+    pocTd.className = 'td-poc';
+    const isLocked = !!locked[gk(d, h)];
+    const hasConflict = conflicts.has(gk(d, h));
+
+    if (pocName) {
+      const s  = supports.find(x => x.name === pocName);
+      const sc = s ? (SITE_CLS[s.site] || '') : '';
+      const lockIcon = isLocked ? '<span class="material-symbols-outlined chip-lock-icon">lock</span>' : '';
+      const conflIcon = hasConflict ? '<span class="conflict-dot" title="Cross-midnight split shift"></span>' : '';
+      const chipCls = isLocked ? `chip chip-locked` : `chip chip-poc ${sc}`;
+      pocTd.innerHTML = `<span class="${chipCls}" 
+        onclick="handlePocClick(${d},${h},event)" 
+        oncontextmenu="showCtxMenu(${d},${h},event)"
+        title="Left-click: cycle · Right-click: options"
+      >${pocName}${lockIcon}${conflIcon}</span>`;
+    } else {
+      const av = getAvail(d, h);
+      pocTd.innerHTML = `<span class="no-cov">${av.length ? 'UNASSIGNED' : 'NO COVERAGE'}</span>`;
+    }
+    tr.appendChild(pocTd);
+
+    supports.forEach((s, si) => {
+      const td    = document.createElement('td');
+      const st    = getStatus(si, d, h);
+      const isPOC = pocName === s.name;
+      const sk    = getShiftKey(si, d, h);
+      const cnt   = sk ? (shiftCounts[sk] || 0) : 0;
+      const sc    = SITE_CLS[s.site] || '';
+      const isLock = !!locked[gk(d, h)] && isPOC;
+
+      if (isPOC) {
+        const lockIcon = isLock
+          ? '<span class="material-symbols-outlined" style="font-size:12px;vertical-align:-2px">lock</span>'
+          : '<span class="material-symbols-outlined" style="font-size:12px;vertical-align:-2px">check</span>';
+        td.innerHTML = `<span class="chip ${isLock ? 'chip-locked' : 'chip-poc ' + sc}" 
+          oncontextmenu="showCtxMenu(${d},${h},event)"
+          title="Right-click for options">${lockIcon} POC</span>`;
+      } else if (st.type === 'avail') {
+        if (!isSiteIncluded(s.site, d) || !isSiteIncluded(s.site, st.shiftDay)) {
+          const title = st.shiftDay !== d
+            ? `${s.site} excluded (this shift spans an excluded day)`
+            : `${s.site} excluded for this day`;
+          td.innerHTML = `<span class="chip chip-excluded" title="${title}">excluded</span>`;
+        } else if (cnt >= MAX_CAP) {
+          td.innerHTML = `<span class="chip chip-capped" title="Cap ${cnt}/${MAX_CAP}h">capped</span>`;
+        } else {
+          td.innerHTML = `<span class="chip chip-avail" title="Assign ${s.name}" onclick="forceAssign('${s.name}',${d},${h})"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:-2px">check</span> avail</span>`;
+        }
+      } else if (st.type === 'restrict') {
+        td.innerHTML = `<span class="chip chip-restrict" title="Ramp-up/wind-down">±</span>`;
+      } else {
+        const raw = s.sched[d];
+        const lbl = (raw && /^(off|vl|loa)$/i.test(String(raw))) ? String(raw).toUpperCase() : '—';
+        td.innerHTML = `<span class="chip chip-off">${lbl}</span>`;
+      }
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+
+  renderSummary(d, shiftCounts, scores, pocHrs, availHrs);
+  refreshDayBadges();
+
+  const activeRow = tbody.querySelector('tr.active-hour');
+  if (activeRow) {
+    setTimeout(() => activeRow.scrollIntoView({ block: 'center', behavior: 'smooth' }), 100);
+  }
+}
+
+function addTH(row, text, cls) {
+  const th = document.createElement('th');
+  th.className = cls || '';
+  th.textContent = text;
+  row.appendChild(th);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Interaction
+// ─────────────────────────────────────────────────────────────
+function handlePocClick(d, h, e) {
+  e.preventDefault();
+  if (locked[gk(d, h)]) {
+    showToast('Slot is locked — right-click to unlock', 'warning');
+    return;
+  }
+  cyclePOC(d, h);
+}
+
+function cyclePOC(d, h) {
+  const avail = getAvail(d, h);
+  if (!avail.length) return;
+  const cur = assignments[gk(d, h)];
+  const idx = avail.findIndex(s => s.name === cur);
+  assignments[gk(d, h)] = avail[(idx + 1) % avail.length].name;
+  trackEdit('cycle');
+  render();
+}
+
+function forceAssign(name, d, h) {
+  assignments[gk(d, h)] = name;
+  trackEdit('assign');
+  render();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Context menu
+// ─────────────────────────────────────────────────────────────
+function showCtxMenu(d, h, e) {
+  e.preventDefault();
+  ctxTarget = { d, h };
+
+  const isLock = !!locked[gk(d, h)];
+  document.getElementById('ctxLock').style.display   = isLock   ? 'none' : 'flex';
+  document.getElementById('ctxUnlock').style.display = isLock   ? 'flex' : 'none';
+
+  const menu = document.getElementById('ctxMenu');
+  menu.style.left = Math.min(e.clientX, window.innerWidth  - 180) + 'px';
+  menu.style.top  = Math.min(e.clientY, window.innerHeight - 160) + 'px';
+  menu.classList.add('show');
+
+  setTimeout(() => document.addEventListener('click', hideCtxMenu, { once: true }), 10);
+}
+
+function hideCtxMenu() {
+  document.getElementById('ctxMenu').classList.remove('show');
+}
+
+function ctxAction(action) {
+  hideCtxMenu();
+  if (!ctxTarget) return;
+  const { d, h } = ctxTarget;
+  const key = gk(d, h);
+
+  if (action === 'cycle') {
+    if (locked[key]) { showToast('Unlock first to cycle', 'warning'); return; }
+    cyclePOC(d, h);
+  } else if (action === 'lock') {
+    if (!assignments[key]) { showToast('Nothing assigned to lock', 'error'); return; }
+    locked[key] = true;
+    trackEdit('lock');
+    render();
+    showToast('Slot locked — auto-assign will skip it', 'success');
+  } else if (action === 'unlock') {
+    delete locked[key];
+    trackEdit('unlock');
+    render();
+    showToast('Slot unlocked', 'success');
+  } else if (action === 'clear') {
+    if (locked[key]) { showToast('Unlock first to clear', 'warning'); return; }
+    delete assignments[key];
+    trackEdit('clear');
+    render();
+  }
+  ctxTarget = null;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Summary bar + agent breakdown
+// ─────────────────────────────────────────────────────────────
+function renderSummary(d, shiftCounts, scores, pocHrs, availHrs) {
+  const total = HOURS.filter(h => assignments[gk(d, h)]).length;
+  const uncov = HOURS.filter(h => !assignments[gk(d, h)] && getAvail(d, h).length > 0).length;
+
+  const dayCounts = {};
+  for (let h = 0; h < 24; h++) {
+    const n = assignments[gk(d, h)];
+    if (n) dayCounts[n] = (dayCounts[n] || 0) + 1;
+  }
+
+  const over = Object.entries(shiftCounts)
+    .filter(([, c]) => c > MAX_CAP)
+    .map(([sk, c]) => {
+      const si = parseInt(sk.split('_')[0]);
+      return supports[si] ? `${supports[si].name}(${c}h)` : '';
+    }).filter(Boolean).join(', ');
+
+  const lockedCount = Object.keys(locked).filter(k => {
+    const week = weeks[currentWeek];
+    if (!week) return false;
+    return week.days.some(day => k.startsWith(day.globalIdx + ':'));
+  }).length;
+
+  const dist = Object.entries(dayCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([n, c]) => {
+      const s   = supports.find(x => x.name === n);
+      const dot = SITE_DOT[s ? s.site : ''] || '#999';
+      return `<span class="dist-item"><span class="d-dot" style="background:${dot}"></span><b>${n}</b>&nbsp;${c}h</span>`;
+    }).join('');
+
+  const week = weeks[currentWeek];
+  const wsKey    = week ? week.label : '—';
+  const dayLabel = week ? week.days[currentDay].label : '—';
+
+  document.getElementById('summaryBar').innerHTML =
+    `<span><b>${wsKey}</b> — ${dayLabel}</span>` +
+    `<span class="s-sep"></span>` +
+    `<span>Covered: <b>${total}h</b></span>` +
+    `<span>Uncovered: <span class="${uncov > 0 ? 's-bad' : 's-ok'}">${uncov}h</span></span>` +
+    (over ? `<span style="color:var(--system-red)">Over cap: <b>${over}</b></span>` : '') +
+    (lockedCount > 0 ? `<span style="color:var(--lock-fg)">🔒 ${lockedCount} locked</span>` : '') +
+    `<span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${dist}</span>` +
+    `<span style="margin-left:auto">` +
+    `<button class="ab-toggle" onclick="toggleBreakdown()">▾ Full breakdown</button>` +
+    `</span>`;
+
+  renderAgentBreakdown(dayCounts, scores, pocHrs, availHrs);
+}
+
+let breakdownOpen = false;
+function toggleBreakdown() {
+  breakdownOpen = !breakdownOpen;
+  const el = document.getElementById('agentBreakdown');
+  el.classList.toggle('open', breakdownOpen);
+  document.querySelector('.ab-toggle').textContent = breakdownOpen ? '▴ Hide breakdown' : '▾ Full breakdown';
+}
+
+function renderAgentBreakdown(dayCounts, scores, pocHrs, availHrs) {
+  const el = document.getElementById('agentBreakdown');
+
+  const items = supports.map(s => {
+    const hrs   = dayCounts[s.name] || 0;
+    const fair  = scores[s.name] || 0;
+    const avail = availHrs[s.name] || 0;
+    const dot   = SITE_DOT[s.site] || '#999';
+    const fairCls = fair >= 30 ? 'fair-hi' : fair >= 10 ? 'fair-mid' : 'fair-lo';
+    return { s, hrs, fair, avail, dot, fairCls };
+  }).sort((a, b) => b.hrs - a.hrs);
+
+  el.innerHTML = items.map(({ s, hrs, fair, avail, dot, fairCls }) => `
+    <div class="ab-item">
+      <span class="ab-dot" style="background:${dot}"></span>
+      <span>${s.name}</span>
+      <span class="ab-hrs">${hrs}h</span>
+      ${avail > 0 ? `<span class="ab-fair ${fairCls}" title="Week POC load: ${pocHrs[s.name]}h / ${avail}h avail">${fair}%</span>` : ''}
+    </div>
+  `).join('');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  History (local session snapshots)
+// ─────────────────────────────────────────────────────────────
+function saveHistory() {
+  const week = weeks[currentWeek];
+  if (!week) return;
+  const snap = {};
+  week.days.forEach(d => {
+    HOURS.forEach(h => {
+      const val = assignments[gk(d.globalIdx, h)];
+      if (val) snap[gk(d.globalIdx, h)] = val;
+    });
+  });
+  if (Object.keys(snap).length > 0) {
+    history[week.label] = {
+      days:        week.days.map(d => d.label),
+      globalIdxs:  week.days.map(d => d.globalIdx),
+      assignments: Object.assign({}, snap)
+    };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Published Weeks Overview panel — loading / error / empty states
+// ─────────────────────────────────────────────────────────────
+function openHistory() {
+  document.getElementById('historyPanel').classList.add('open');
+  setBtnLoading('historyBtn', true);
+  const body = document.getElementById('historyBody');
+  body.innerHTML = `<div class="history-state">
+    <div class="spinner"></div>
+    <div>Loading published schedule…</div>
+  </div>`;
+
+  if (typeof google === 'undefined' || !google.script) {
+    body.innerHTML = renderHistoryError('Not running inside Google Apps Script.');
+    setBtnLoading('historyBtn', false);
+    return;
+  }
+  google.script.run
+    .withSuccessHandler(res => { renderPublishedPanel(res); setBtnLoading('historyBtn', false); })
+    .withFailureHandler(e => {
+      body.innerHTML = renderHistoryError(e.message);
+      reportError('loadPublishedWeeks', e);
+      setBtnLoading('historyBtn', false);
+    })
+    .getAllPublishedWeeks();
+}
+
+function renderHistoryError(message) {
+  return `<div class="history-state is-error">
+    <span class="material-symbols-outlined" style="font-size:28px">error</span>
+    <div>Couldn't load published weeks — ${message}</div>
+    <button class="btn primary" onclick="openHistory()"><span class="material-symbols-outlined btn-icon">refresh</span>Retry</button>
+  </div>`;
+}
+
+function closeHistory() {
+  document.getElementById('historyPanel').classList.remove('open');
+}
+
+function renderPublishedPanel(result) {
+  const body = document.getElementById('historyBody');
+  if (!result || !result.ok) {
+    body.innerHTML = renderHistoryError(result ? result.error : 'no response from server');
+    return;
+  }
+  const weeksData = result.weeks;
+  if (!weeksData.length) {
+    body.innerHTML = `<div class="history-state">
+      <span class="material-symbols-outlined" style="font-size:28px;color:var(--tertiary-label)">calendar_view_week</span>
+      <div>No weeks published yet — hit Publish to write the first one.</div>
+    </div>`;
+    return;
+  }
+
+  const currentLabel = weeks[currentWeek] ? weeks[currentWeek].label : null;
+
+  body.innerHTML = weeksData.slice().reverse().map(w => {
+    const daysHtml = w.days.map((dayLabel, di) => {
+      const agentHrs = {};
+      for (let h = 0; h < 24; h++) {
+        const n = w.assignments[di + ':' + h];
+        if (n) agentHrs[n] = (agentHrs[n] || 0) + 1;
+      }
+
+      const rows = Object.entries(agentHrs)
+        .sort((a, b) => b[1] - a[1])
+        .map(([n, hrs]) => {
+          const s   = supports.find(x => x.name === n);
+          const dot = SITE_DOT[s ? s.site : ''] || '#999';
+          return `<div class="hdc-agent">
+            <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dot};margin-right:4px"></span>${n}</span>
+            <b>${hrs}h</b>
+          </div>`;
+        }).join('');
+
+      return `<div class="history-day-card">
+        <div class="hdc-title">${dayLabel || ('Day ' + (di + 1))}</div>
+        ${rows || '<div style="color:var(--system-gray2);font-size:11px">No assignments</div>'}
+      </div>`;
+    }).join('');
+
+    const safeLabel = w.label.replace(/'/g, "\\'");
+    return `<div class="history-week">
+      <h3>${w.label}${w.label === currentLabel ? ' — currently viewing' : ''}
+        <button class="history-del-btn" onclick="confirmDeleteWeek('${safeLabel}')">🗑 Delete</button>
+      </h3>
+      <div class="history-grid">${daysHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+// Deletes a published week from the POC Schedule tab (server), then clears
+// any locally hydrated assignments/locks for that week.
+function confirmDeleteWeek(label) {
+  if (!confirm(`Delete published week ${label}? This clears it from the POC Schedule tab and cannot be undone.`)) return;
+
+  google.script.run
+    .withSuccessHandler(res => {
+      if (!res.ok) {
+        showToast('Delete failed: ' + res.error, 'error');
+        reportError('deleteWeek', { message: res.error }, label);
+        return;
+      }
+      publishedWeekLabels.delete(label);
+
+      const localWeek = weeks.find(w => w.label === label);
+      if (localWeek) {
+        localWeek.days.forEach(d => {
+          HOURS.forEach(h => {
+            delete assignments[gk(d.globalIdx, h)];
+            delete locked[gk(d.globalIdx, h)];
+          });
+        });
+        if (weeks[currentWeek] === localWeek) { render(); }
+        refreshDayBadges();
+      }
+
+      showToast('Deleted ' + label, 'success');
+      openHistory();
+    })
+    .withFailureHandler(e => {
+      showToast('Delete failed: ' + e.message, 'error');
+      reportError('deleteWeek', e, label);
+    })
+    .deleteWeekGroup(label);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Publish — whole week, or just the selected day(s)
+// ─────────────────────────────────────────────────────────────
+function publishPOC() {
+  if (!weeks[currentWeek]) { showToast('No week selected', 'error'); return; }
+  flushEditBatch();
+  setBtnLoading('publishBtn', true);
+
+  const week     = weeks[currentWeek];
+  const weekDays = week.days;
+  const wsKey    = week.label;
+
+  saveHistory();
+
+  const weekAssignments = {};
+  weekDays.forEach((d, di) => {
+    HOURS.forEach(h => {
+      const val = assignments[gk(d.globalIdx, h)];
+      if (val) weekAssignments[String(di) + ':' + String(h)] = val;
+    });
+  });
+
+  // If day-select mode is on with a non-empty, non-full selection, scope
+  // the publish to just those day-indices. Otherwise publish the whole week
+  // (unchanged default behavior).
+  const useSubset = daySelectMode && selectedDays.size > 0 && selectedDays.size < weekDays.length;
+  const dayIndices = useSubset ? Array.from(selectedDays).sort((a, b) => a - b) : null;
+
+  const payloadJson = JSON.stringify({
+    weekLabel:   wsKey,
+    assignments: weekAssignments,
+    days:        weekDays.map(d => d.label),
+    dayIndices:  dayIndices
+  });
+
+  google.script.run
+    .withSuccessHandler(res => {
+      setBtnLoading('publishBtn', false);
+      if (res.ok) {
+        publishedWeekLabels.add(wsKey);
+        showToast('✓ Published ' + res.weekLabel + ' — ' + (res.scope || res.note), 'success');
+        if (daySelectMode) { exitDaySelectMode(); buildDayTabs(); }
+      } else {
+        showToast('Publish failed: ' + res.error, 'error');
+        reportError('publish', { message: res.error }, wsKey);
+      }
+    })
+    .withFailureHandler(e => {
+      setBtnLoading('publishBtn', false);
+      showToast('Publish failed: ' + e.message, 'error');
+      reportError('publish', e, wsKey);
+    })
+    .publishPOC(payloadJson);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Toast
+// ─────────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type ? ' ' + type : '');
+  setTimeout(() => { t.className = type || ''; }, 3800);
+}
+</script>
+</body>
+</html>
