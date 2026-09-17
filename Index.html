@@ -458,6 +458,8 @@
     background: linear-gradient(90deg, var(--accent-teal), var(--accent-violet)); border-radius: 3px 3px 0 0;
   }
   .day-tab.active .dt-date { color: var(--accent-violet); opacity: 0.85; }
+  .day-tab.weekend-tab { background-color: rgba(23,26,34,0.03); border-radius: 8px; margin-top: 4px; margin-bottom: 4px; }
+  .day-tab.weekend-tab .dt-name { color: var(--system-gray); }
 
   /* ── Legend ── */
   .legend-bar {
@@ -1537,13 +1539,15 @@ function buildDayTabs() {
   if (!weeks[currentWeek]) return;
 
   weeks[currentWeek].days.forEach((d, i) => {
-    const tab = document.createElement('button');
-    tab.className = 'day-tab' + (i === currentDay ? ' active' : '');
-    tab.dataset.dayIdx = i;
-
     let dayName = d.label, dateStr = '';
     const parts = d.label.match(/^([A-Za-z]+)\s+(.+)$/);
     if (parts) { dayName = parts[1]; dateStr = parts[2]; }
+
+    const isWeekend = dayName === 'Sat' || dayName === 'Sun';
+
+    const tab = document.createElement('button');
+    tab.className = 'day-tab' + (i === currentDay ? ' active' : '') + (isWeekend ? ' weekend-tab' : '');
+    tab.dataset.dayIdx = i;
 
     const gi = d.globalIdx;
     const uncov = countUncovered(gi);
@@ -2216,7 +2220,17 @@ function renderInner() {
 
   const activeRow = tbody.querySelector('tr.active-hour');
   if (activeRow) {
-    setTimeout(() => activeRow.scrollIntoView({ block: 'center', behavior: 'smooth' }), 100);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const selectedDayObj = weeks[currentWeek].days[currentDay];
+
+    if (selectedDayObj && selectedDayObj.date) {
+      const selectedDate = new Date(selectedDayObj.date);
+      selectedDate.setHours(0,0,0,0);
+      if (selectedDate.getTime() === today.getTime()) {
+        setTimeout(() => activeRow.scrollIntoView({ block: 'center', behavior: 'smooth' }), 100);
+      }
+    }
   }
 }
 
